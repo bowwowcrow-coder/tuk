@@ -39,7 +39,7 @@ main{max-width:1280px;margin:0 auto}
 .card:active{transform:scale(.98)}
 .card.basic{background:var(--card);box-shadow:inset 0 0 0 .5px var(--line);color:var(--tx)}
 .card.grain::after{content:'';position:absolute;inset:0;background-image:var(--noise);background-size:128px;mix-blend-mode:overlay;opacity:.4;pointer-events:none;z-index:1}
-.card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;max-width:none}
 .card img.blur{filter:blur(12px) saturate(1.2);transform:scale(1.35)}
 .card .ov{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.42),transparent 48%);z-index:1}
 .card .tt{position:absolute;left:8px;top:7px;right:7px;font-size:12.5px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;z-index:2;word-break:keep-all;overflow-wrap:break-word}
@@ -130,7 +130,7 @@ textarea.f{resize:none;min-height:110px;line-height:1.55}
 .blk .lk{margin:0;border-radius:0;background:none}
 .blk .f{border:0}
 .blk>*+*{border-top:0}
-.blk .f.title{padding:8px 4px 4px;font-size:18px}
+.blk .f.title{padding:10px 4px;font-size:18px;line-height:1.3}
 .blk textarea.f{min-height:72px;padding:6px 4px 10px;line-height:1.6}
 .tg{display:flex;justify-content:center;width:100%;padding:12px 0 2px;color:var(--tx3)}
 .tg .ic{transition:transform .18s}
@@ -171,10 +171,10 @@ textarea.f{resize:none;min-height:110px;line-height:1.55}
 .btns{gap:8px}
 
 .ed{position:relative;width:100%;border-radius:12px;overflow:hidden;touch-action:none;cursor:grab;margin-bottom:12px;user-select:none;-webkit-user-select:none}
-.ed img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.ed img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;max-width:none;will-change:left,top,width,height}
 .trow{display:flex;align-items:center}
 .trow .f{flex:1;min-width:0}
-.lico{display:grid;place-items:center;width:44px;height:44px;color:var(--tx3);flex:none}
+.lico{display:grid;place-items:center;width:36px;align-self:stretch;color:var(--tx3);flex:none}
 .lico .ic{width:18px;height:18px}
 .zrow{padding:10px 2px 14px}
 

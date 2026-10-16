@@ -289,10 +289,21 @@ async function storeImage(blob, opt = {}) {
   S.blobURL.set(key + '_t.jpg', URL.createObjectURL(t)); S.blobURL.set(key + '_f.jpg', URL.createObjectURL(f));
   return { key, w, h: hh, color };
 }
-function applyFocus(im, img) {
+function fitGeo(img, W, H) {
+  const ar = (img.w || 1) / (img.h || 1), z = Math.max(1, img.z || 1);
+  const bw = ar > W / H ? H * ar : W, bh = ar > W / H ? H : W / ar;
+  return { sw: bw * z, sh: bh * z, ex: Math.max(0, bw * z - W), ey: Math.max(0, bh * z - H) };
+}
+function applyFocus(im, img, W, H) {
   const fx = img.fx != null ? img.fx : 0.5, fy = img.fy != null ? img.fy : 0.5;
-  if (img.fx != null) im.style.objectPosition = `${fx * 100}% ${fy * 100}%`;
-  if (img.z && img.z > 1) { im.style.transformOrigin = `${fx * 100}% ${fy * 100}%`; im.style.transform = `scale(${img.z})`; }
+  if (!(img.w && img.h && W && H)) {
+    if (img.fx != null) im.style.objectPosition = `${fx * 100}% ${fy * 100}%`;
+    if (img.z && img.z > 1) { im.style.transformOrigin = `${fx * 100}% ${fy * 100}%`; im.style.transform = `scale(${img.z})`; }
+    return;
+  }
+  const g = fitGeo(img, W, H);
+  im.style.objectFit = 'fill'; im.style.inset = 'auto'; im.style.width = g.sw + 'px'; im.style.height = g.sh + 'px';
+  im.style.left = (-fx * g.ex) + 'px'; im.style.top = (-fy * g.ey) + 'px'; im.style.transform = 'none';
 }
 const imgSrc = (img, sz) => S.blobURL.get(img.key + '_' + sz + '.jpg') || '/api/img/' + img.key + '_' + sz + '.jpg';
 
@@ -411,7 +422,7 @@ function cardEl(it, D) {
   const img = d.img; let photoShown = false;
   if (img && (pm === 'orig' || pm === 'blur')) {
     photoShown = true; el.style.background = img.color || col;
-    const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); applyFocus(im, img); if (pm === 'blur') im.className = 'blur';
+    const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); applyFocus(im, img, D.W, D.H); if (!(img.w && img.h)) im.onload = () => { img.w = im.naturalWidth; img.h = im.naturalHeight; applyFocus(im, img, D.W, D.H); }; if (pm === 'blur') im.className = 'blur';
     el.append(im);
   } else if (img && pm === 'color') {
     const bg = img.color || col; el.style.background = bg; el.style.color = ink(bg); if (tone !== 'color') el.classList.add('grain');
@@ -424,7 +435,7 @@ function cardEl(it, D) {
   if (mu) {
     el.className = 'card music'; el.style.background = (img && img.color) || col; el.style.color = '#fff';
     el.innerHTML = '';
-    if (img) { const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); applyFocus(im, img); el.append(im); }
+    if (img) { const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); applyFocus(im, img, D.W, D.H); if (!(img.w && img.h)) im.onload = () => { img.w = im.naturalWidth; img.h = im.naturalHeight; applyFocus(im, img, D.W, D.H); }; el.append(im); }
     else { el.classList.add('grain'); el.insertAdjacentHTML('beforeend', `<div class="tt">${date}</div><div class="cap"><b>${esc(d.title || mu.title || titleOf(it))}</b>${artist ? `<small>${esc(artist)}</small>` : ''}</div>`); }
     if (S.dirty.has(it.id)) el.append(h('i', 'up'));
     return el;
@@ -740,22 +751,42 @@ function openCard(id) {
       const ed = h('div', 'ed'); ed.style.aspectRatio = D.r[0] + ' / ' + D.r[1]; ed.style.background = d.img.color || colorOf(it.parent || 'root');
       pim = h('img'); pim.src = imgSrc(d.img, 'f'); pim.alt = ''; pim.draggable = false;
       pim.onerror = () => { pim.onerror = null; pim.src = imgSrc(d.img, 't'); };
-      applyFocus(pim, d.img); ed.append(pim); p.append(ed);
-      const pts = new Map(); let z0 = 1, d0 = 0;
-      const geo = () => { const im = get(id).data.img, W = ed.clientWidth, H = ed.clientHeight, z = im.z || 1, ar = (im.w || 1) / (im.h || 1), car = W / H; const sw = (ar > car ? H * ar : W) * z, shh = (ar > car ? H : W / ar) * z; return { im, ex: Math.max(1, sw - W), ey: Math.max(1, shh - H) }; };
-      const setZ = z => { const x = get(id); x.data.img.z = Math.max(1, Math.min(3, z)); if (zr) zr.value = String(x.data.img.z); applyFocus(pim, x.data.img); };
-      ed.addEventListener('pointerdown', e => { e.preventDefault(); ed.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) { const [a, b] = [...pts.values()]; d0 = Math.hypot(a.x - b.x, a.y - b.y); z0 = get(id).data.img.z || 1; } });
+      ed.append(pim); p.append(ed);
+      const W = () => ed.clientWidth, H = () => ed.clientHeight;
+      const draw = () => applyFocus(pim, get(id).data.img, W(), H());
+      requestAnimationFrame(draw); pim.onload = () => { const im = get(id).data.img; if (!(im.w && im.h)) { im.w = pim.naturalWidth; im.h = pim.naturalHeight; } draw(); };
+      const pts = new Map(); let pinch = null;
+      const norm = im => { if (im.fx == null) { im.fx = 0.5; im.fy = 0.5; } if (!im.z) im.z = 1; };
+      const setZ = (z, mx, my) => {
+        const im = get(id).data.img; norm(im); const g0 = fitGeo(im, W(), H());
+        const ix = (mx + im.fx * g0.ex) / g0.sw, iy = (my + im.fy * g0.ey) / g0.sh;
+        im.z = Math.max(1, Math.min(4, z)); const g1 = fitGeo(im, W(), H());
+        im.fx = g1.ex ? Math.max(0, Math.min(1, (ix * g1.sw - mx) / g1.ex)) : 0.5;
+        im.fy = g1.ey ? Math.max(0, Math.min(1, (iy * g1.sh - my) / g1.ey)) : 0.5;
+        if (zr) zr.value = String(im.z); draw();
+      };
+      const pan = (dx, dy) => { const im = get(id).data.img; norm(im); const g = fitGeo(im, W(), H()); if (g.ex) im.fx = Math.max(0, Math.min(1, im.fx - dx / g.ex)); if (g.ey) im.fy = Math.max(0, Math.min(1, im.fy - dy / g.ey)); draw(); };
+      const rect = () => ed.getBoundingClientRect();
+      ed.addEventListener('pointerdown', e => {
+        e.preventDefault(); ed.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: get(id).data.img.z || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; }
+      });
       ed.addEventListener('pointermove', e => {
         if (!pts.has(e.pointerId)) return;
-        const prev = pts.get(e.pointerId); const g = geo(); if (g.im.fx == null) { g.im.fx = 0.5; g.im.fy = 0.5; }
-        if (pts.size === 1) { g.im.fx = Math.max(0, Math.min(1, g.im.fx - (e.clientX - prev.x) / g.ex)); g.im.fy = Math.max(0, Math.min(1, g.im.fy - (e.clientY - prev.y) / g.ey)); applyFocus(pim, g.im); }
-        pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (pts.size === 2) { const [a, b] = [...pts.values()]; const dd = Math.hypot(a.x - b.x, a.y - b.y); if (d0) setZ(z0 * dd / d0); }
+        const prev = pts.get(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pts.size === 1 && !pinch) pan(e.clientX - prev.x, e.clientY - prev.y);
+        else if (pts.size === 2 && pinch) {
+          const [a, b] = [...pts.values()]; const r = rect();
+          const mx = (a.x + b.x) / 2 - r.left, my = (a.y + b.y) / 2 - r.top;
+          pan(mx - (pinch.mx - r.left), my - (pinch.my - r.top)); pinch.mx = mx + r.left; pinch.my = my + r.top;
+          setZ(pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d, mx, my);
+        }
         dirty = true;
       });
-      const end = e => { pts.delete(e.pointerId); if (!pts.size) { clearTimeout(tmr); tmr = setTimeout(commit, 300); } };
+      const end = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) { clearTimeout(tmr); tmr = setTimeout(commit, 300); } };
       ed.addEventListener('pointerup', end); ed.addEventListener('pointercancel', end);
-      ed.addEventListener('wheel', e => { e.preventDefault(); setZ((get(id).data.img.z || 1) * (e.deltaY < 0 ? 1.06 : 0.94)); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 400); }, { passive: false });
+      ed.addEventListener('wheel', e => { e.preventDefault(); const r = rect(); setZ((get(id).data.img.z || 1) * (e.deltaY < 0 ? 1.08 : 0.92), e.clientX - r.left, e.clientY - r.top); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 400); }, { passive: false });
+      ed.addEventListener('dblclick', e => { const r = rect(); const z = (get(id).data.img.z || 1) > 1.05 ? 1 : 2; setZ(z, e.clientX - r.left, e.clientY - r.top); dirty = true; commit(); });
     }
     const blk = h('div', 'blk');
     const ti = h('input', 'f title'); ti.placeholder = '제목'; ti.value = d.title || '';
@@ -783,7 +814,8 @@ function openCard(id) {
     if (d.img) {
       const zbox = h('div', 'zrow');
       zr = h('input'); zr.type = 'range'; zr.min = '1'; zr.max = '3'; zr.step = '0.05'; zr.value = String(d.img.z || 1);
-      zr.oninput = () => { const x = get(id); x.data.img.z = +zr.value; applyFocus(pim, x.data.img); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 600); };
+      zr.max = '4';
+      zr.oninput = () => { const x = get(id); x.data.img.z = +zr.value; applyFocus(pim, x.data.img, pim.parentNode.clientWidth, pim.parentNode.clientHeight); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 600); };
       zbox.append(zr); more.append(zbox);
     }
     const dtw = h('label', 'dtw'); const dtx = h('span', '', fmtDate(d.at, 'dt').replace('<br>', ' '));
