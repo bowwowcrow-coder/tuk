@@ -381,7 +381,7 @@ function cardEl(it, D) {
     el.innerHTML = '';
     if (img) { const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); el.append(im); } else el.classList.add('grain');
     el.append(h('div', 'ov'));
-    el.insertAdjacentHTML('beforeend', `<div class="tt">${date}</div><div class="cap"><b>${esc(mu.title || titleOf(it))}</b>${mu.artist ? `<small>${esc(mu.artist)}</small>` : ''}</div>`);
+    el.insertAdjacentHTML('beforeend', `<div class="tt">${date}</div><div class="cap"><b>${esc(d.title || mu.title || titleOf(it))}</b>${mu.artist ? `<small>${esc(mu.artist)}</small>` : ''}</div>`);
     if (S.dirty.has(it.id)) el.append(h('i', 'up'));
     return el;
   }

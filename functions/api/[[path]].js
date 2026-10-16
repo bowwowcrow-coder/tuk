@@ -60,6 +60,9 @@ async function meta(url) {
   return out;
 }
 
+function cleanTitle(t) {
+  return (t || '').replace(/【[^】]*】/g, ' ').replace(/^\s*\[[^\]]*\]\s*/, '').replace(/\((official|lyrics?|mv|m\/v|audio|가사|고음질)[^)]*\)/gi, ' ').split(/\s+[|｜]\s+/)[0].replace(/\s{2,}/g, ' ').trim() || t;
+}
 async function itunes(q) {
   try {
     const r = await fetch('https://itunes.apple.com/search?media=music&entity=song&limit=6&country=KR&term=' + encodeURIComponent(q), { cf: { cacheTtl: 3600 } });
@@ -82,7 +85,7 @@ async function ytSearch(q) {
       if (!o || typeof o !== 'object' || out.length >= 6) return;
       if (o.videoRenderer && o.videoRenderer.videoId) {
         const v = o.videoRenderer;
-        out.push({ src: 'youtube', yt: v.videoId, title: (v.title && v.title.runs && v.title.runs.map(t => t.text).join('')) || '', artist: ((v.ownerText && v.ownerText.runs && v.ownerText.runs[0].text) || '').replace(/\s*-\s*Topic$/, ''), url: 'https://music.youtube.com/watch?v=' + v.videoId, art: 'https://i.ytimg.com/vi/' + v.videoId + '/mqdefault.jpg' });
+        out.push({ src: 'youtube', yt: v.videoId, title: cleanTitle((v.title && v.title.runs && v.title.runs.map(t => t.text).join('')) || ''), artist: ((v.ownerText && v.ownerText.runs && v.ownerText.runs[0].text) || '').replace(/\s*-\s*Topic$/, ''), url: 'https://music.youtube.com/watch?v=' + v.videoId, art: 'https://i.ytimg.com/vi/' + v.videoId + '/mqdefault.jpg' });
         return;
       }
       for (const k in o) walk(o[k]);
