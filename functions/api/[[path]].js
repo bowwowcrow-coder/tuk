@@ -121,10 +121,12 @@ async function ytSearch(q) {
     if (!m) return [];
     const out = [];
     const walk = o => {
-      if (!o || typeof o !== 'object' || out.length >= 6) return;
+      if (!o || typeof o !== 'object' || out.length >= 12) return;
       if (o.videoRenderer && o.videoRenderer.videoId) {
         const v = o.videoRenderer;
-        out.push({ src: 'youtube', yt: v.videoId, title: cleanTitle((v.title && v.title.runs && v.title.runs.map(t => t.text).join('')) || ''), artist: (o => /\s-\sTopic$/.test(o) ? o.replace(/\s*-\s*Topic$/, '') : '')((v.ownerText && v.ownerText.runs && v.ownerText.runs[0].text) || ''), url: 'https://music.youtube.com/watch?v=' + v.videoId, art: 'https://i.ytimg.com/vi/' + v.videoId + '/mqdefault.jpg' });
+        const owner = (v.ownerText && v.ownerText.runs && v.ownerText.runs[0].text) || '';
+        const raw = (v.title && v.title.runs && v.title.runs.map(t => t.text).join('')) || '';
+        out.push({ src: 'youtube', yt: v.videoId, title: cleanTitle(raw), raw, owner, topic: /\s-\sTopic$/.test(owner), artist: /\s-\sTopic$/.test(owner) ? owner.replace(/\s*-\s*Topic$/, '') : '', dur: (v.lengthText && v.lengthText.simpleText) || '', url: 'https://music.youtube.com/watch?v=' + v.videoId, art: 'https://i.ytimg.com/vi/' + v.videoId + '/mqdefault.jpg' });
         return;
       }
       for (const k in o) walk(o[k]);
@@ -200,34 +202,16 @@ export async function onRequest({ request: req, env, params }) {
   if (path === 'music') {
     const q = (url.searchParams.get('q') || '').trim().slice(0, 200);
     if (!q) return J({ items: [] });
-    const [m, a, y] = await Promise.all([ytmSearch(q), itunes(q), ytSearch(q)]);
-    const items = [...m];
-    const seen = new Set(m.map(x => x.yt));
-    for (let i = 0; i < 4; i++) { if (a[i]) items.push(a[i]); }
-    for (const v of y) { if (!seen.has(v.yt)) { items.push(v); if (items.length >= 12) break; } }
-    return J({ items: items.slice(0, 12), src: m.length ? 'ytm' : 'fallback', err: url.searchParams.get('debug') ? ytmSearch.err || '' : undefined });
-  }
-
-  if (path === 'ytmdebug') {
-    const q = url.searchParams.get('q') || 'fluquor';
-    const H = { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/', 'x-origin': 'https://music.youtube.com', 'x-youtube-client-name': '67', 'x-youtube-client-version': '1.20241030.01.00' };
-    const out = [];
-    try {
-      const r0 = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: H, body: JSON.stringify({ context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q }) });
-      const j0 = await r0.json(); const vd = j0.responseContext && j0.responseContext.visitorData; out.push(['visitor', vd]);
-      const tries = [['vd+songs', { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR', visitorData: vd }, 'EgWKAQIIAWoMEA4QChADEAQQCRAF'],
-        ['vd+songs+en', { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'en', gl: 'US', visitorData: vd }, 'EgWKAQIIAWoMEA4QChADEAQQCRAF'],
-        ['android+songs', { clientName: 'ANDROID_MUSIC', clientVersion: '6.42.52', hl: 'en', gl: 'US', androidSdkVersion: 30 }, 'EgWKAQIIAWoMEA4QChADEAQQCRAF'],
-        ['android+none', { clientName: 'ANDROID_MUSIC', clientVersion: '6.42.52', hl: 'en', gl: 'US', androidSdkVersion: 30 }, null]];
-      for (const [name, client, params] of tries) {
-        const body = { context: { client }, query: q }; if (params) body.params = params;
-        const hh = Object.assign({}, H, vd ? { 'x-goog-visitor-id': vd } : {});
-        if (client.clientName === 'ANDROID_MUSIC') { hh['user-agent'] = 'com.google.android.apps.youtube.music/6.42.52 (Linux; U; Android 11) gzip'; delete hh.origin; delete hh.referer; delete hh['x-origin']; hh['x-youtube-client-name'] = '21'; hh['x-youtube-client-version'] = '6.42.52'; }
-        const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyAOghZGza2MQSZkY_zfZ370N-PUdXEo8AI&prettyPrint=false', { method: 'POST', headers: hh, body: JSON.stringify(body) });
-        const t = await r.text(); out.push([name, r.status, t.length, (t.match(/"videoId":"([\w-]{11})"/g) || []).length, (t.match(/"text":"(노래|동영상|Song|Video)"/) || [])[1] || '', t.slice(0, 120)]);
-      }
-    } catch (e) { out.push(['err', String(e)]); }
-    return J(out);
+    const [y1, y2, a] = await Promise.all([ytSearch(q), ytSearch(q + ' topic'), itunes(q)]);
+    const PLAY = /master|hard|expert|chaos|glitch|lv\.?\s*\d|lvl|level|perfect|purified|combo|\bFC\b|\bAP\b|\bPP\b|chart|譜面|手元|プレイ|플레이|공략|clear|gameplay|\d+\s*%|million|pts|score|theoretical|full|fails?|難易度|難度|难度|hands|cover\b|피아노|piano|1시간|1 hour|loop|nightcore|slowed|reverb|remix|live|stage|무대|ver\.|version/i;
+    const GOOD = /official audio|official|audio|lyrics|가사|mv|music video|full ver/i;
+    const seen = new Set(), vids = [];
+    for (const v of [...y2, ...y1]) { if (seen.has(v.yt)) continue; seen.add(v.yt); v.score = (v.topic ? 100 : 0) + (GOOD.test(v.raw) ? 15 : 0) - (PLAY.test(v.raw) ? 60 : 0) - (/【|\[/.test(v.raw) ? 5 : 0); vids.push(v); }
+    vids.sort((x, y) => y.score - x.score);
+    const top = vids.filter(v => v.topic), rest = vids.filter(v => !v.topic);
+    const items = [...top, ...a.slice(0, 4), ...rest].slice(0, 14);
+    items.forEach(v => { delete v.raw; delete v.owner; delete v.score; });
+    return J({ items });
   }
 
   if (path === 'playlist') {
