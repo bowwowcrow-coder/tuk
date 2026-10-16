@@ -216,10 +216,13 @@ export async function onRequest({ request: req, env, params }) {
     const q = url.searchParams.get('q') || 'fluquor';
     const body = { context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q };
     const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/' }, body: JSON.stringify(body) });
-    const t = await r.text(); const titles = []; const re = /"musicShelfRenderer":\{"title":\{"runs":\[\{"text":"([^"]*)"/g; let m; while ((m = re.exec(t))) titles.push(m[1]);
-    const card = (t.match(/"musicCardShelfRenderer".{0,400}/) || [''])[0];
-    const items = await ytmSearch(q);
-    return J({ status: r.status, len: t.length, titles, card: card.slice(0, 400), items: items.slice(0, 3) });
+    const j = await r.json(); const shelves = [], cards = [];
+    const walk = o => { if (!o || typeof o !== 'object') return;
+      if (o.musicShelfRenderer) { const sh = o.musicShelfRenderer; shelves.push({ keys: Object.keys(sh), title: JSON.stringify(sh.title).slice(0, 200), n: (sh.contents || []).length, first: JSON.stringify((sh.contents || [])[0]).slice(0, 1500) }); return; }
+      if (o.musicCardShelfRenderer) { const cs = o.musicCardShelfRenderer; cards.push({ keys: Object.keys(cs), title: JSON.stringify(cs.title).slice(0, 300), subtitle: JSON.stringify(cs.subtitle).slice(0, 300) }); return; }
+      for (const k in o) walk(o[k]); };
+    walk(j);
+    return J({ shelves, cards });
   }
 
   if (path === 'playlist') {
