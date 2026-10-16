@@ -157,7 +157,7 @@ textarea.f{resize:none;min-height:110px;line-height:1.55}
 .btn.ico .ic{width:19px;height:19px}
 .inrow{display:flex;gap:8px;align-items:center}
 .inrow .f{flex:1;min-width:0}
-.inrow .btn.ico{flex:none}
+.inrow .btn.ico{flex:none;width:40px}
 .inrow .f{border-bottom:.5px solid var(--line)}
 .mlist{margin-top:8px}
 .nores{display:grid;place-items:center;padding:28px 0;color:var(--tx3)}

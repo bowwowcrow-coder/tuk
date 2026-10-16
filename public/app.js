@@ -508,7 +508,7 @@ function shelf(tabId, opt = {}) {
   const row = h('div', 'row' + (opt.grid ? ' wrap' : ''));
   const list = [...subs.map(s => ({ s })), ...cards.map(c => ({ c }))];
   const ghost = h('div', 'card ghost', I.plus); ghost.style.width = D.W + 'px'; ghost.style.height = D.H + 'px';
-  ghost.onclick = () => openNewTab(tabId);
+  ghost.onclick = () => openAdd(tabId);
   list.forEach((x, i) => {
     const el = x.s ? folderEl(x.s, D) : cardEl(x.c, D);
     if (S.edit === tabId && i === 0) addHandles(el, tabId, row);
@@ -606,7 +606,7 @@ function render(center) {
     open.forEach(t => frag.append(shelf(t.id)));
   } else {
     open.forEach(t => frag.append(shelf(t.id)));
-    frag.append(shelf(V, { self: true, grid: true }));
+    frag.append(shelf(V, { self: true }));
   }
   if (closed.length) {
     const b = h('button', 'closed', `${I.archive}<span>${closed.map(t => esc(t.data.title || '')).join(' · ')}</span>${S.showClosed ? I.upc : I.down}`);
@@ -706,6 +706,18 @@ function openTabSheet(id) {
 function countDesc(id) { let n = 0; for (const k of kids(id)) n += 1 + countDesc(k.id); return n; }
 function markDeleted(id) { for (const k of [...kids(id)]) markDeleted(k.id); const x = get(id); x.deleted = true; save(x, true); reindex(); render(); }
 
+function openAdd(parent) {
+  openSheet(p => {
+    const inp = h('input', 'f title'); inp.enterKeyHint = 'done';
+    const pf = h('input'); pf.type = 'file'; pf.accept = 'image/*'; pf.multiple = true; pf.hidden = true;
+    pf.onchange = () => { closeSheet(); addFiles(pf.files, parent); };
+    const mkTab = () => { const name = inp.value.trim(); if (!name) { inp.focus(); return; } const sib = tabsOf(parent); save({ id: uid(), parent, kind: 'tab', sort: sib.length ? Math.max(...sib.map(x => x.sort || 0)) + 1 : 0, data: { title: name, set: {} }, updated: 0, deleted: false }); closeSheet(); };
+    const mkCard = () => { const txt = inp.value.trim(); if (!txt) { inp.focus(); return; } closeSheet(); addText(txt, parent); };
+    inp.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); (URL_RE.test(inp.value) ? mkCard : mkTab)(); } };
+    const row = h('div', 'inrow'); row.append(inp, iconBtn(I.folderPlus, mkTab), iconBtn(I.up, mkCard), iconBtn(I.photo, () => pf.click()), pf); p.append(row);
+    setTimeout(() => inp.focus(), 60);
+  });
+}
 function openNewTab(parent) {
   openSheet(p => {
     const inp = h('input', 'f title'); inp.placeholder = '이름'; inp.enterKeyHint = 'done';
