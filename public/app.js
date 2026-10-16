@@ -834,11 +834,11 @@ function lockScreen(msg) {
 /* ---------- 입력바 ---------- */
 const inp = $('#inp');
 function autosize() { inp.style.height = '42px'; inp.style.height = Math.min(150, inp.scrollHeight + 1) + 'px'; }
-inp.addEventListener('input', autosize);
+inp.addEventListener('input', () => { autosize(); $('#bar').classList.toggle('has', !!inp.value.trim()); });
 inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && window.matchMedia('(pointer:fine)').matches) { e.preventDefault(); submit(); } });
 inp.addEventListener('paste', e => { const fs = e.clipboardData && e.clipboardData.files; if (fs && fs.length) { e.preventDefault(); addFiles(fs, S.view); } });
 $('#bar').addEventListener('submit', e => { e.preventDefault(); submit(); });
-function submit() { const txt = inp.value.trim(); if (!txt) { inp.focus(); return; } inp.value = ''; autosize(); addText(txt, S.view); }
+function submit() { const txt = inp.value.trim(); if (!txt) { inp.focus(); return; } inp.value = ''; autosize(); $('#bar').classList.remove('has'); addText(txt, S.view); }
 $('#photoBtn').onclick = () => $('#file').click();
 $('#file').onchange = e => { addFiles(e.target.files, S.view); e.target.value = ''; };
 document.addEventListener('dragover', e => e.preventDefault());
