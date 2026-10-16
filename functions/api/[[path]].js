@@ -66,7 +66,7 @@ function cleanTitle(t) {
 async function ytmSearch(q) {
   try {
     const body = { context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q };
-    const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/' }, body: JSON.stringify(body), cf: { cacheTtl: 3600 } });
+    const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/' }, body: JSON.stringify(body) });
     if (!r.ok) return [];
     const j = await r.json(); const out = [];
     const SONG = /^(노래|Song|곡)$/i, TYPE = /^(노래|Song|곡|동영상|Video|앨범|Album|아티스트|Artist|재생목록|Playlist|싱글|Single|EP|팟캐스트|Podcast|에피소드|Episode|프로필|Profile)$/i;
@@ -99,7 +99,7 @@ async function ytmSearch(q) {
     };
     walk(j);
     return out.slice(0, 8);
-  } catch (e) { return []; }
+  } catch (e) { ytmSearch.err = String(e && e.stack || e); return []; }
 }
 async function itunes(q) {
   try {
@@ -204,7 +204,7 @@ export async function onRequest({ request: req, env, params }) {
     const seen = new Set(m.map(x => x.yt));
     for (let i = 0; i < 4; i++) { if (a[i]) items.push(a[i]); }
     for (const v of y) { if (!seen.has(v.yt)) { items.push(v); if (items.length >= 12) break; } }
-    return J({ items: items.slice(0, 12), src: m.length ? 'ytm' : 'fallback' });
+    return J({ items: items.slice(0, 12), src: m.length ? 'ytm' : 'fallback', err: url.searchParams.get('debug') ? ytmSearch.err || '' : undefined });
   }
 
   if (path === 'playlist') {
