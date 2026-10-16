@@ -167,6 +167,17 @@ export async function onRequest({ request: req, env, params }) {
     return J({ items: items.slice(0, 10) });
   }
 
+  if (path === 'playlist') {
+    const ids = (url.searchParams.get('ids') || '').split(',').filter(x => /^[\w-]{6,}$/.test(x)).slice(0, 50);
+    if (!ids.length) return J({ error: 'no ids' }, 400);
+    let list = '';
+    try {
+      const r = await fetch('https://www.youtube.com/watch_videos?video_ids=' + ids.join(','), { redirect: 'manual', headers: { 'user-agent': UA } });
+      const m = (r.headers.get('location') || '').match(/[?&]list=([\w-]+)/); if (m) list = m[1];
+    } catch (e) {}
+    return J({ list, n: ids.length, yt: list ? `https://www.youtube.com/watch?v=${ids[0]}&list=${list}` : `https://www.youtube.com/watch_videos?video_ids=${ids.join(',')}`, music: list ? `https://music.youtube.com/watch?v=${ids[0]}&list=${list}` : '' });
+  }
+
   if (path === 'proxy') {
     const u = url.searchParams.get('u');
     if (!u || !/^https?:\/\//.test(u)) return J({ error: 'bad url' }, 400);

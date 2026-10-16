@@ -42,7 +42,8 @@ const I = {
   right: sv('<path d="M9 6l6 6-6 6"/>'),
   date1: sv('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/>'),
   clock: sv('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
-  none: sv('<circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/>')
+  none: sv('<circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/>'),
+  play: sv('<path d="M8 5.5v13l10-6.5z"/>')
 };
 
 /* ---------- 설정 단계 ---------- */
@@ -461,6 +462,19 @@ function gesture(el, onTap, onLong) {
   el.addEventListener('pointercancel', () => { clearTimeout(tm); tm = null; });
   el.addEventListener('contextmenu', e => { e.preventDefault(); if (e.pointerType === 'mouse' || !e.pointerType) { clearTimeout(tm); tm = null; onLong(); } });
 }
+function musicIds(tabId) {
+  const out = [];
+  const walk = id => { cardsOf(id).slice().reverse().forEach(c => { const y = c.data.link && c.data.link.yt; if (y && !out.includes(y)) out.push(y); }); tabsOf(id).forEach(t => walk(t.id)); };
+  walk(tabId); return out.slice(0, 50);
+}
+async function playAll(tabId) {
+  const ids = musicIds(tabId); if (!ids.length) return;
+  const w = window.open('about:blank', '_blank');
+  try {
+    const j = await (await api('playlist?ids=' + ids.join(','))).json();
+    const u = j.music || j.yt; if (w) w.location = u; else location.href = u;
+  } catch (e) { if (w) w.close(); toast('지금은 못 열어요'); }
+}
 function shelf(tabId, opt = {}) {
   const t = get(tabId);
   const wrap = h('section', opt.dim ? 'dim' : '');
@@ -469,7 +483,9 @@ function shelf(tabId, opt = {}) {
   const subs = self ? [] : tabsOf(tabId), cards = cardsOf(tabId);
   if (!self) {
     const hd = h('div', 'hd nav'); hd.innerHTML = `<b>${esc(t.data.title || '')}</b>`;
-    hd.querySelector('b').onclick = () => go(tabId); wrap.append(hd);
+    hd.querySelector('b').onclick = () => go(tabId);
+    if (musicIds(tabId).length > 1) { const pl = h('button', 'play', I.play); pl.type = 'button'; pl.onclick = () => playAll(tabId); hd.append(pl); }
+    wrap.append(hd);
   } else wrap.classList.add('selfshelf');
   const row = h('div', 'row' + (opt.grid ? ' wrap' : ''));
   const list = [...subs.map(s => ({ s })), ...cards.map(c => ({ c }))];
@@ -654,6 +670,7 @@ function openTabSheet(id) {
     }
     const btns = h('div', 'btns');
     if (Object.keys(own).some(k => k !== 'collapsed')) btns.append(iconBtn(I.reset, () => { const x = get(id); x.data.set = own.collapsed ? { collapsed: 1 } : {}; save(x); rebuild(); }));
+    if (musicIds(id).length > 1) btns.append(iconBtn(I.play, () => playAll(id)));
     if (!isRoot) {
       btns.append(iconBtn(I.folderPlus, () => openNewTab(id)));
       btns.append(iconBtn(I.move, () => openMove(id)));
@@ -769,10 +786,12 @@ function openCard(id) {
       zr.oninput = () => { const x = get(id); x.data.img.z = +zr.value; applyFocus(pim, x.data.img); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 600); };
       zbox.append(zr); more.append(zbox);
     }
-    const dt = h('input', 'f dt'); dt.type = 'datetime-local';
+    const dtw = h('label', 'dtw'); const dtx = h('span', '', fmtDate(d.at, 'dt').replace('<br>', ' '));
+    const dt = h('input'); dt.type = 'datetime-local';
     const at = new Date(d.at || Date.now()); dt.value = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
-    dt.onchange = () => { const v = new Date(dt.value).getTime(); if (!isNaN(v)) { get(id).data.at = v; touch(); } };
-    const r1 = h('div', 'rowr'); r1.append(dt);
+    dt.onchange = () => { const v = new Date(dt.value).getTime(); if (!isNaN(v)) { get(id).data.at = v; dtx.innerHTML = fmtDate(v, 'dt').replace('<br>', ' '); touch(); } };
+    dtw.append(dtx, dt);
+    const r1 = h('div', 'rowr'); r1.append(dtw);
     if (d.img) r1.append(seg(SEG_PHOTO, d.photo || '', v => { const x = get(id); if (v) x.data.photo = v; else delete x.data.photo; dirty = true; commit(); closeSheet(); openCard(id); }, { icon: true, clear: true }));
     more.append(r1);
     const btns = h('div', 'btns');
