@@ -6,9 +6,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const sv = p => `<svg class="ic" viewBox="0 0 24 24">${p}</svg>`;
 const I = {
-  home: sv('<path d="M4.5 11.5L12 5l7.5 6.5"/><path d="M6.5 10v9h11v-9"/>'),
+  home: sv('<path d="M5 10.5L12 4.5l7 6V19H5z"/>'),
   search: sv('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>'),
-  photo: sv('<rect x="4" y="5.5" width="16" height="13" rx="2.5"/><path d="M4.5 15.5l5-4.5 4 3.5 2.5-2 3.5 3"/>'),
+  photo: sv('<rect x="4" y="5.5" width="16" height="13" rx="2.5"/><path d="M4.5 15.5l5-4.5 10 7"/>'),
   up: sv('<path d="M12 19V5M6 11l6-6 6 6"/>'),
   folder: sv('<rect x="4.5" y="5.5" width="15" height="13" rx="2.5"/>'),
   link: sv('<path d="M9.5 14.5l5-5"/><path d="M11.5 7.5l1.2-1.2a3.3 3.3 0 0 1 4.7 4.7L16.2 12.2"/><path d="M12.5 16.5l-1.2 1.2a3.3 3.3 0 0 1-4.7-4.7l1.2-1.2"/>'),
