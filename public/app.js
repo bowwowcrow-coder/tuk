@@ -447,7 +447,7 @@ function folderEl(t, D) {
   const tone = setv(t.id, 'tone'), col = colorOf(t.id);
   const el = h('div', 'card folder'); el.style.width = D.W + 'px'; el.style.height = D.H + 'px';
   if (tone === 'basic') el.classList.add('basic'); else { el.style.background = col; el.style.color = ink(col); if (tone === 'grain') el.classList.add('grain'); }
-  el.innerHTML += `<div class="tt">${I.folder}${esc(t.data.title || '')}</div>`;
+  el.innerHTML += `<div class="fn">${esc(t.data.title || '')}</div>`;
   return el;
 }
 function gesture(el, onTap, onLong) {
@@ -474,7 +474,8 @@ function shelf(tabId, opt = {}) {
   } else wrap.classList.add('selfshelf');
   const row = h('div', 'row' + (opt.grid ? ' wrap' : ''));
   const list = [...subs.map(s => ({ s })), ...cards.map(c => ({ c }))];
-  if (!list.length) row.append(h('div', 'empty'));
+  const ghost = h('div', 'card ghost', I.plus); ghost.style.width = D.W + 'px'; ghost.style.height = D.H + 'px';
+  ghost.onclick = () => openNewTab(tabId);
   list.forEach((x, i) => {
     const el = x.s ? folderEl(x.s, D) : cardEl(x.c, D);
     if (S.edit === tabId && i === 0) addHandles(el, tabId, row);
@@ -484,6 +485,7 @@ function shelf(tabId, opt = {}) {
     }, () => { S.edit = S.edit === tabId ? null : tabId; render(); });
     row.append(el);
   });
+  if (!opt.dim) row.append(ghost);
   wrap.append(row);
   if (S.edit === tabId) wrap.append(editPanel(tabId));
   return wrap;
@@ -566,11 +568,11 @@ function render(center) {
   const V = S.view, tabs = tabsOf(V), cards = cardsOf(V);
   const open = tabs.filter(t => !(t.data.set && t.data.set.collapsed)), closed = tabs.filter(t => t.data.set && t.data.set.collapsed);
   if (V === 'root') {
-    if (cards.length || !tabs.length) frag.append(shelf('root', { self: true, label: '받은함' }));
+    frag.append(shelf('root', { self: true }));
     open.forEach(t => frag.append(shelf(t.id)));
   } else {
     open.forEach(t => frag.append(shelf(t.id)));
-    if (cards.length || !tabs.length) frag.append(shelf(V, { self: true, label: tabs.length ? '낱장' : '카드', grid: true }));
+    frag.append(shelf(V, { self: true, grid: true }));
   }
   if (closed.length) {
     const b = h('button', 'closed', `${I.archive}<span>${closed.map(t => esc(t.data.title || '')).join(' · ')}</span>${S.showClosed ? I.upc : I.down}`);
@@ -578,8 +580,6 @@ function render(center) {
     frag.append(b);
     if (S.showClosed) closed.forEach(t => frag.append(shelf(t.id, { dim: true })));
   }
-  const add = h('button', 'addtab', I.plus); add.setAttribute('aria-label', '추가'); add.onclick = () => openNewTab(V);
-  frag.append(add);
   main.replaceChildren(frag);
 }
 function go(id, noPush) {

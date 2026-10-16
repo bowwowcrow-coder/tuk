@@ -137,14 +137,11 @@ textarea.f{resize:none;min-height:110px;line-height:1.55}
 .tg .ic{transition:transform .18s}
 .tg.open .ic{transform:rotate(180deg)}
 
-.empty{height:6px}
 .selfshelf{padding-top:8px}
 .selfshelf+section{margin-top:4px}
 .closed{display:flex;align-items:center;gap:8px;width:100%;padding:14px 12px 6px;font-size:14px;color:var(--tx2);text-align:left;border-top:.5px solid var(--line);margin-top:14px}
 .closed span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .closed .ic{width:15px;height:15px;flex:none}
-.addtab{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--card);border:.5px solid var(--line);margin:18px 12px 0;color:var(--tx3)}
-.addtab .ic{width:15px;height:15px}
 .edp{display:flex;gap:10px;align-items:center;padding:10px 12px 2px}
 .seg.isg button{padding:6px 10px;display:grid;place-items:center}
 .seg.isg .ic{width:17px;height:17px}
@@ -181,3 +178,8 @@ textarea.f{resize:none;min-height:110px;line-height:1.55}
 .lico{display:grid;place-items:center;width:44px;height:44px;color:var(--tx3);flex:none}
 .lico .ic{width:18px;height:18px}
 .zrow{padding:10px 2px 14px}
+
+.card .fn{position:absolute;left:9px;right:9px;bottom:8px;font-size:13.5px;font-weight:600;line-height:1.25;z-index:2;word-break:keep-all;overflow-wrap:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card.ghost{background:none;box-shadow:inset 0 0 0 .5px var(--line);color:var(--tx3);display:grid;place-items:center}
+.card.ghost .ic{width:16px;height:16px}
+.card.ghost:active{transform:none;background:var(--card)}
