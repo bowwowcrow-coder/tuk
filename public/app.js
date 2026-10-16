@@ -403,7 +403,23 @@ async function fetchMeta(id) {
     save(cur);
   } catch (e) { if (e.message !== '401') console.warn('meta', e); }
 }
-function retryMeta() { for (const it of S.items.values()) if (it.data && it.data.link && it.data.link.pending && !it.deleted) fetchMeta(it.id); }
+const imgTried = new Set();
+async function healImage(id) {
+  const it = S.items.get(id); if (!it || it.deleted || imgTried.has(id) || !navigator.onLine || !S.key) return;
+  const d = it.data || {}; if (d.img || !d.link) return;
+  imgTried.add(id);
+  let img = null;
+  if (d.link.yt) img = await musicImage({ yt: d.link.yt });
+  else if (d.link.image) { try { const r = await api('proxy?u=' + encodeURIComponent(d.link.image)); img = await storeImage(await r.blob()); } catch (e) {} }
+  const cur = S.items.get(id); if (img && cur && !cur.data.img) { cur.data.img = img; save(cur); }
+}
+function retryMeta() {
+  for (const it of S.items.values()) {
+    if (!it.data || it.deleted || !it.data.link) continue;
+    if (it.data.link.pending) fetchMeta(it.id);
+    else if (!it.data.img && (it.data.link.yt || it.data.link.image)) healImage(it.id);
+  }
+}
 async function addFiles(files, parent) {
   const list = [...files].filter(f => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name));
   if (!list.length) return;
@@ -937,7 +953,7 @@ let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTime
   const q = new URLSearchParams(location.search);
   const shared = [q.get('add'), q.get('title'), q.get('text'), q.get('url')].filter(Boolean).join('\n').trim();
   if (shared) { const target = q.get('tab') && S.items.get(q.get('tab')) ? q.get('tab') : 'root'; history.replaceState({ v: S.view }, '', location.pathname + location.hash); await addText(shared, target); toast('저장했어요'); }
-  if (!S.key) lockScreen(); else { pull().then(push); }
+  if (!S.key) lockScreen(); else { pull().then(push); retryMeta(); }
   window.addEventListener('online', () => { pull(); push(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pull(); else push(); });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
