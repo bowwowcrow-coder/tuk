@@ -411,7 +411,7 @@ function cardEl(it, D) {
   if (img && (pm === 'orig' || pm === 'blur')) {
     photoShown = true; el.style.background = img.color || col;
     const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); applyFocus(im, img); if (pm === 'blur') im.className = 'blur';
-    el.append(im, h('div', 'ov'));
+    el.append(im);
   } else if (img && pm === 'color') {
     const bg = img.color || col; el.style.background = bg; el.style.color = ink(bg); if (tone !== 'color') el.classList.add('grain');
   } else if (tone === 'basic') el.classList.add('basic');
@@ -423,22 +423,21 @@ function cardEl(it, D) {
   if (mu) {
     el.className = 'card music'; el.style.background = (img && img.color) || col; el.style.color = '#fff';
     el.innerHTML = '';
-    if (img) { const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); applyFocus(im, img); el.append(im); } else el.classList.add('grain');
-    el.append(h('div', 'ov'));
-    el.insertAdjacentHTML('beforeend', `<div class="tt">${date}</div><div class="cap"><b>${esc(d.title || mu.title || titleOf(it))}</b>${artist ? `<small>${esc(artist)}</small>` : ''}</div>`);
+    if (img) { const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); applyFocus(im, img); el.append(im); }
+    else { el.classList.add('grain'); el.insertAdjacentHTML('beforeend', `<div class="tt">${date}</div><div class="cap"><b>${esc(d.title || mu.title || titleOf(it))}</b>${artist ? `<small>${esc(artist)}</small>` : ''}</div>`); }
     if (S.dirty.has(it.id)) el.append(h('i', 'up'));
     return el;
   }
   const strong = !!(d.title || lt);
   const ic = lt ? I.link : (img && !photoShown) ? I.photo : '';
+  if (photoShown) { if (S.dirty.has(it.id)) el.append(h('i', 'up')); return el; }
   if (strong) el.insertAdjacentHTML('beforeend', `<div class="tt">${date}${ic}${esc(titleOf(it))}</div>`);
   else {
     const tx = h('div', 'tt tx', date + ic + esc((d.body || '').trim()));
     tx.style.webkitLineClamp = Math.max(1, Math.floor((D.H - 12) / 17));
-    if (photoShown && !d.body) tx.innerHTML = date;
     el.append(tx);
   }
-  const sn = (photoShown || !strong) ? '' : snippetOf(it);
+  const sn = !strong ? '' : snippetOf(it);
   if (sn && D.H > 64) { const s = h('div', 'sn'); s.textContent = sn; const lines = Math.max(1, Math.floor((D.H - 62) / 16)); s.style.webkitLineClamp = lines; el.append(s); }
   if (S.dirty.has(it.id)) el.append(h('i', 'up'));
   return el;
