@@ -68,7 +68,7 @@ async function ytmSearch(q) {
     const body = { context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q };
     const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/' }, body: JSON.stringify(body) });
     if (!r.ok) return [];
-    const j = await r.json(); const out = [];
+    const j = await r.json(); const out = []; ytmSearch.dbg = [];
     const SONG = /^(노래|Song|곡)$/i, TYPE = /^(노래|Song|곡|동영상|Video|앨범|Album|아티스트|Artist|재생목록|Playlist|싱글|Single|EP|팟캐스트|Podcast|에피소드|Episode|프로필|Profile)$/i;
     const runs = c => { const t = c && c.musicResponsiveListItemFlexColumnRenderer && c.musicResponsiveListItemFlexColumnRenderer.text; return t && t.runs ? t.runs : []; };
     const artOf = th => { const a = th && th.musicThumbnailRenderer && th.musicThumbnailRenderer.thumbnail && th.musicThumbnailRenderer.thumbnail.thumbnails; let u = a && a.length ? a[a.length - 1].url : ''; return u.replace(/=w\d+-h\d+.*$/, '=w600-h600-l90-rj'); };
@@ -84,6 +84,7 @@ async function ytmSearch(q) {
       if (o.musicResponsiveListItemRenderer) {
         const it = o.musicResponsiveListItemRenderer;
         const r0 = runs(it.flexColumns && it.flexColumns[0]), r1 = runs(it.flexColumns && it.flexColumns[1]);
+        if (ytmSearch.dbg && ytmSearch.dbg.length < 4) ytmSearch.dbg.push({ keys: Object.keys(it), fc: (it.flexColumns || []).length, r0: r0.map(x => x.text), r1: r1.map(x => x.text), pid: it.playlistItemData, nav: r0[0] && r0[0].navigationEndpoint ? Object.keys(r0[0].navigationEndpoint) : null, ov: it.overlay ? JSON.stringify(it.overlay).slice(0, 300) : '' });
         const vid = (it.playlistItemData && it.playlistItemData.videoId) || (r0[0] && r0[0].navigationEndpoint && r0[0].navigationEndpoint.watchEndpoint && r0[0].navigationEndpoint.watchEndpoint.videoId);
         push(vid, (r0[0] && r0[0].text) || '', r1.map(x => x.text).join('').split('•').map(x => x.trim()).filter(Boolean), artOf(it.thumbnail));
         return;
@@ -204,7 +205,7 @@ export async function onRequest({ request: req, env, params }) {
     const seen = new Set(m.map(x => x.yt));
     for (let i = 0; i < 4; i++) { if (a[i]) items.push(a[i]); }
     for (const v of y) { if (!seen.has(v.yt)) { items.push(v); if (items.length >= 12) break; } }
-    return J({ items: items.slice(0, 12), src: m.length ? 'ytm' : 'fallback', err: url.searchParams.get('debug') ? ytmSearch.err || '' : undefined });
+    return J({ items: items.slice(0, 12), src: m.length ? 'ytm' : 'fallback', err: url.searchParams.get('debug') ? ytmSearch.err || '' : undefined, dbg: url.searchParams.get('debug') ? ytmSearch.dbg : undefined });
   }
 
   if (path === 'playlist') {
