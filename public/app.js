@@ -352,6 +352,13 @@ async function saveMusic(m, parent, cardId, q) {
   save(it);
   const img = await musicImage(m);
   if (img) { const cur = get(it.id); cur.data.img = img; save(cur); }
+  if (!m.yt) {
+    try {
+      const j = await (await api('music?q=' + encodeURIComponent([m.title, m.artist].filter(Boolean).join(' ')))).json();
+      const hit = (j.items || []).find(x => x.yt);
+      if (hit) { const cur = get(it.id); cur.data.link.yt = hit.yt; cur.data.url = 'https://music.youtube.com/watch?v=' + hit.yt; save(cur, true); }
+    } catch (e) {}
+  }
 }
 function openMusicPick(q, parent, cardId) {
   openSheet(p => {
@@ -495,7 +502,7 @@ function shelf(tabId, opt = {}) {
   if (!self) {
     const hd = h('div', 'hd nav'); hd.innerHTML = `<b>${esc(t.data.title || '')}</b>`;
     hd.querySelector('b').onclick = () => go(tabId);
-    if (musicIds(tabId).length > 1) { const pl = h('button', 'play', I.play); pl.type = 'button'; pl.onclick = () => playAll(tabId); hd.append(pl); }
+    if (musicIds(tabId).length) { const pl = h('button', 'play', I.play); pl.type = 'button'; pl.onclick = () => playAll(tabId); hd.append(pl); }
     wrap.append(hd);
   } else wrap.classList.add('selfshelf');
   const row = h('div', 'row' + (opt.grid ? ' wrap' : ''));
@@ -586,6 +593,7 @@ function renderBC(center) {
     requestAnimationFrame(cen); if (document.fonts && document.fonts.ready) document.fonts.ready.then(cen);
   }
   $('#inp').placeholder = S.view === 'root' ? '툭 던져두기' : (get(S.view).data.title || '여기') + '에 던져두기';
+  const pb = $('#playBtn'); const has = S.view !== 'root' && musicIds(S.view).length > 0; pb.hidden = !has;
 }
 function render(center) {
   if (S.view !== 'root' && (!get(S.view) || !alive(S.view))) S.view = 'root';
@@ -681,7 +689,7 @@ function openTabSheet(id) {
     }
     const btns = h('div', 'btns');
     if (Object.keys(own).some(k => k !== 'collapsed')) btns.append(iconBtn(I.reset, () => { const x = get(id); x.data.set = own.collapsed ? { collapsed: 1 } : {}; save(x); rebuild(); }));
-    if (musicIds(id).length > 1) btns.append(iconBtn(I.play, () => playAll(id)));
+    if (musicIds(id).length) btns.append(iconBtn(I.play, () => playAll(id)));
     if (!isRoot) {
       btns.append(iconBtn(I.folderPlus, () => openNewTab(id)));
       btns.append(iconBtn(I.move, () => openMove(id)));
@@ -792,7 +800,7 @@ function openCard(id) {
     const ti = h('input', 'f title'); ti.placeholder = '제목'; ti.value = d.title || '';
     ti.oninput = () => { get(id).data.title = ti.value; touch(); };
     const trow = h('div', 'trow'); trow.append(ti);
-    if (d.url) { const a = h('a', 'lico', d.music || (d.link && (d.link.type === 'music' || d.link.type === 'video')) ? I.music : I.link); a.href = d.url; a.target = '_blank'; a.rel = 'noopener'; trow.append(a); }
+    if (d.url) { const yt = d.link && d.link.yt; const a = h('a', 'lico', yt || d.music ? I.music : I.link); a.href = yt ? 'https://music.youtube.com/watch?v=' + yt : d.url; a.target = '_blank'; a.rel = 'noopener'; trow.append(a); }
     const bo = h('textarea', 'f'); bo.placeholder = '내용'; bo.value = d.body || '';
     const grow = () => { bo.style.height = 'auto'; bo.style.height = Math.max(72, Math.min(320, bo.scrollHeight + 2)) + 'px'; };
     bo.oninput = () => { get(id).data.body = bo.value; grow(); touch(); };
@@ -894,7 +902,7 @@ $('#photoBtn').onclick = () => $('#file').click();
 $('#file').onchange = e => { addFiles(e.target.files, S.view); e.target.value = ''; };
 document.addEventListener('dragover', e => e.preventDefault());
 document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files, S.view); });
-$('#homeBtn').innerHTML = I.home; $('#srchBtn').innerHTML = I.search; $('#photoBtn').innerHTML = I.photo; $('#sendBtn').innerHTML = I.up;
+$('#homeBtn').innerHTML = I.home; $('#srchBtn').innerHTML = I.search; $('#playBtn').innerHTML = I.play; $('#playBtn').onclick = () => playAll(S.view); $('#photoBtn').innerHTML = I.photo; $('#sendBtn').innerHTML = I.up;
 $('#homeBtn').onclick = () => S.view === 'root' ? openTabSheet('root') : go('root');
 $('#srchBtn').onclick = openSearch;
 document.addEventListener('pointerdown', e => { if (S.edit && !e.target.closest('section, #top, #sheet, #bar')) { S.edit = null; render(false); } });
