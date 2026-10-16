@@ -210,14 +210,17 @@ export async function onRequest({ request: req, env, params }) {
 
   if (path === 'ytmdebug') {
     const q = url.searchParams.get('q') || 'fluquor';
-    const body = { context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q };
-    const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/' }, body: JSON.stringify(body) });
-    const j = await r.json(); const types = []; let song = null;
-    const walk = o => { if (!o || typeof o !== 'object') return;
-      if (o.musicResponsiveListItemRenderer) { const it = o.musicResponsiveListItemRenderer; const fc = it.flexColumns || []; const t1 = fc[1] && fc[1].musicResponsiveListItemFlexColumnRenderer.text; const txt = t1 && t1.runs ? t1.runs.map(x => x.text).join('') : ''; types.push(txt.slice(0, 40)); if (!song && /^(노래|Song)/.test(txt)) song = JSON.stringify(it).replace(/"(clickTrackingParams|trackingParams)":"[^"]*",?/g, '').slice(0, 3000); return; }
-      for (const k in o) walk(o[k]); };
-    walk(j);
-    return J({ types, song, items: await ytmSearch(q) });
+    const H = { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/' };
+    const ps = ['EgWKAQIIAWoMEA4QChADEAQQCRAF', 'EgWKAQIIAWoKEAoQAxAEEAkQBQ%3D%3D', 'EgWKAQIIAWoKEAoQAxAEEAkQBQ==', 'EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D', 'EgWKAQIIAWoOEAMQBBAJEA4QChAFEBU%3D', 'EgWKAQIIAWoOEAMQBBAJEA4QChAFEBU=', 'EgWKAQIQAWoMEA4QChADEAQQCRAF'];
+    const out = [];
+    for (const params of ps) {
+      try {
+        const body = { context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q, params };
+        const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: H, body: JSON.stringify(body) });
+        const t = await r.text(); out.push([params, r.status, t.length, (t.match(/"videoId":"([\w-]{11})"/g) || []).length, (t.match(/"text":"(노래|동영상)"/) || [])[1] || '']);
+      } catch (e) { out.push([params, 'err', String(e)]); }
+    }
+    return J(out);
   }
 
   if (path === 'playlist') {
