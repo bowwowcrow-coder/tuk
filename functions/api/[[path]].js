@@ -60,6 +60,38 @@ async function meta(url) {
   return out;
 }
 
+async function itunes(q) {
+  try {
+    const r = await fetch('https://itunes.apple.com/search?media=music&entity=song&limit=6&country=KR&term=' + encodeURIComponent(q), { cf: { cacheTtl: 3600 } });
+    const j = await r.json();
+    return (j.results || []).map(x => ({
+      src: 'apple', title: x.trackName, artist: x.artistName, album: x.collectionName,
+      art: (x.artworkUrl100 || '').replace(/100x100bb/, '600x600bb'),
+      url: 'https://music.youtube.com/search?q=' + encodeURIComponent(x.trackName + ' ' + x.artistName)
+    }));
+  } catch (e) { return []; }
+}
+async function ytSearch(q) {
+  try {
+    const r = await fetch('https://www.youtube.com/results?hl=ko&gl=KR&search_query=' + encodeURIComponent(q), { headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', 'accept-language': 'ko,en;q=0.8' }, cf: { cacheTtl: 3600 } });
+    const html = await r.text();
+    const m = html.match(/var ytInitialData\s*=\s*(\{.+?\});<\/script>/s);
+    if (!m) return [];
+    const out = [];
+    const walk = o => {
+      if (!o || typeof o !== 'object' || out.length >= 6) return;
+      if (o.videoRenderer && o.videoRenderer.videoId) {
+        const v = o.videoRenderer;
+        out.push({ src: 'youtube', yt: v.videoId, title: (v.title && v.title.runs && v.title.runs.map(t => t.text).join('')) || '', artist: ((v.ownerText && v.ownerText.runs && v.ownerText.runs[0].text) || '').replace(/\s*-\s*Topic$/, ''), url: 'https://music.youtube.com/watch?v=' + v.videoId, art: 'https://i.ytimg.com/vi/' + v.videoId + '/mqdefault.jpg' });
+        return;
+      }
+      for (const k in o) walk(o[k]);
+    };
+    walk(JSON.parse(m[1]));
+    return out;
+  } catch (e) { return []; }
+}
+
 export async function onRequest({ request: req, env, params }) {
   const path = (params.path || []).join('/');
   const url = new URL(req.url);
@@ -121,6 +153,15 @@ export async function onRequest({ request: req, env, params }) {
     const u = url.searchParams.get('url');
     if (!u || !/^https?:\/\//.test(u)) return J({ error: 'bad url' }, 400);
     return J(await meta(u));
+  }
+
+  if (path === 'music') {
+    const q = (url.searchParams.get('q') || '').trim().slice(0, 200);
+    if (!q) return J({ items: [] });
+    const [a, y] = await Promise.all([ytSearch(q), itunes(q)]);
+    const items = [];
+    for (let i = 0; i < 6; i++) { if (y[i]) items.push(y[i]); if (a[i]) items.push(a[i]); }
+    return J({ items: items.slice(0, 10) });
   }
 
   if (path === 'proxy') {

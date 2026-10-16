@@ -22,7 +22,7 @@ const I = {
 /* ---------- 설정 단계 ---------- */
 const RATIOS = [[2, 5], [1, 2], [3, 5], [2, 3], [3, 4], [4, 5], [1, 1], [5, 4], [4, 3], [3, 2], [2, 1]];
 const SIZES = [6, 5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5];
-const DEF = { tone: 'grain', color: '#3C3489', photo: 'orig', date: 'd', ratio: 5, size: 3 };
+const DEF = { kind: 'normal', tone: 'grain', color: '#3C3489', photo: 'orig', date: 'd', ratio: 5, size: 3 };
 const SWATCH = ['#26215C', '#3C3489', '#993556', '#D85A30', '#BA7517', '#0F6E56', '#185FA5', '#5F5E5A', '#E6F1FB', '#F1EFE8'];
 
 /* ---------- IndexedDB ---------- */
@@ -81,6 +81,13 @@ function setv(id, k) {
   for (let i = c.length - 1; i >= 0; i--) { const s = c[i].data && c[i].data.set; if (s && s[k] != null && s[k] !== '') return s[k]; }
   return DEF[k];
 }
+const MUSIC_RE = /음악|노래|music|song|플리|playlist/i;
+function hasOwn(id, k) { return chain(id).some(x => x.data && x.data.set && x.data.set[k] != null && x.data.set[k] !== ''); }
+function isMusic(id) {
+  if (hasOwn(id, 'kind')) return setv(id, 'kind') === 'music';
+  return chain(id).some(x => x.id !== 'root' && MUSIC_RE.test((x.data && x.data.title) || ''));
+}
+const ratioIdx = id => (!hasOwn(id, 'ratio') && isMusic(id)) ? 6 : setv(id, 'ratio');
 function colorOf(id) {
   const c = chain(id);
   for (let i = c.length - 1; i >= 0; i--) {
@@ -219,8 +226,18 @@ function domColor(src) {
   const hx = v => Math.round(v / best.n).toString(16).padStart(2, '0');
   return '#' + hx(best.r) + hx(best.g) + hx(best.b);
 }
-async function storeImage(blob) {
-  const src = await decodeImg(blob);
+function squareCrop(src) {
+  const w = src.naturalWidth || src.width, hh = src.naturalHeight || src.height;
+  let ch = hh, y0 = 0; const ar = w / hh;
+  if (ar > 1.2 && ar < 1.5) { ch = Math.round(w * 9 / 16); y0 = Math.round((hh - ch) / 2); }
+  const side = Math.min(w, ch), x0 = Math.round((w - side) / 2), yy = y0 + Math.round((ch - side) / 2);
+  const c = document.createElement('canvas'); c.width = c.height = side;
+  c.getContext('2d').drawImage(src, x0, yy, side, side, 0, 0, side, side);
+  return c;
+}
+async function storeImage(blob, opt = {}) {
+  let src = await decodeImg(blob);
+  if (opt.square) src = squareCrop(src);
   const w = src.naturalWidth || src.width, hh = src.naturalHeight || src.height;
   const [t, f] = await Promise.all([scaleTo(src, 640, 0.8), scaleTo(src, 2000, 0.86)]);
   const color = domColor(src);
@@ -251,9 +268,60 @@ async function addText(txt, parent) {
     const u = m[0].replace(/[),.]+$/, ''); const rest = txt.replace(m[0], '').trim();
     it.data.url = u; if (rest) it.data.body = rest;
     it.data.link = { type: ytId(u) ? (/music\./.test(u) ? 'music' : 'video') : 'link', pending: true };
-  } else it.data.body = txt;
+  } else {
+    if (isMusic(parent) && navigator.onLine && S.key) return openMusicPick(txt, parent);
+    it.data.body = txt;
+  }
   save(it);
   if (m) fetchMeta(it.id);
+}
+async function musicImage(m) {
+  const list = m.yt ? ['https://i.ytimg.com/vi/' + m.yt + '/maxresdefault.jpg', 'https://i.ytimg.com/vi/' + m.yt + '/hqdefault.jpg'] : [m.art];
+  for (const u of list) {
+    if (!u) continue;
+    try { const r = await api('proxy?u=' + encodeURIComponent(u)); return await storeImage(await r.blob(), { square: true }); } catch (e) {}
+  }
+  return null;
+}
+async function saveMusic(m, parent, cardId, q) {
+  const it = cardId ? get(cardId) : newCard(parent, {});
+  it.data.music = { title: m.title, artist: m.artist || '', album: m.album || '', src: m.src };
+  it.data.url = m.url;
+  it.data.link = { type: 'music', title: m.title, author: m.artist || '', site: 'YouTube Music', yt: m.yt || '' };
+  if (cardId && q && (it.data.body || '').trim() === q) delete it.data.body;
+  if (cardId && it.data.img) delete it.data.img;
+  save(it);
+  const img = await musicImage(m);
+  if (img) { const cur = get(it.id); cur.data.img = img; save(cur); }
+}
+function openMusicPick(q, parent, cardId) {
+  openSheet(p => {
+    p.append(h('div', 'sh-t', '어떤 곡이에요?'));
+    const inp = h('input', 'f'); inp.type = 'search'; inp.value = q; inp.enterKeyHint = 'search';
+    const list = h('div');
+    p.append(inp, list);
+    const btns = h('div', 'btns');
+    const plain = h('button', 'btn', cardId ? '닫기' : '글로만 저장');
+    plain.onclick = () => { closeSheet(); if (!cardId) { const it = newCard(parent, { body: q }); save(it); } };
+    btns.append(plain); p.append(btns);
+    const run = async () => {
+      const qq = inp.value.trim(); if (!qq) return;
+      list.innerHTML = '<p class="hint">찾는 중…</p>';
+      try {
+        const j = await (await api('music?q=' + encodeURIComponent(qq))).json();
+        list.innerHTML = '';
+        if (!j.items.length) { list.innerHTML = '<p class="hint">못 찾았어요. 이름이나 가수를 바꿔서 찾아보세요.</p>'; return; }
+        j.items.forEach(m => {
+          const b = h('button', 'mres', `<img src="${esc(m.art)}" alt="" loading="lazy"><div><b>${esc(m.title)}</b><small>${esc([m.artist, m.album].filter(Boolean).join(' · '))}</small></div><span class="srcb">${m.src === 'apple' ? 'Apple' : 'YouTube'}</span>`);
+          b.type = 'button';
+          b.onclick = () => { closeSheet(); saveMusic(m, parent, cardId, q); toast('음악으로 저장했어요'); };
+          list.append(b);
+        });
+      } catch (e) { list.innerHTML = '<p class="hint">지금은 찾을 수 없어요.</p>'; }
+    };
+    inp.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); run(); } };
+    run();
+  });
 }
 async function fetchMeta(id) {
   const it = S.items.get(id); if (!it || !it.data.url || !navigator.onLine || !S.key) return;
@@ -261,7 +329,10 @@ async function fetchMeta(id) {
     const meta = await (await api('meta?url=' + encodeURIComponent(it.data.url))).json();
     const cur = S.items.get(id); if (!cur) return;
     cur.data.link = meta;
-    if (meta.image && !cur.data.img) {
+    if (meta.yt) {
+      cur.data.music = { title: meta.title || '', artist: meta.author || '', src: 'youtube' };
+      if (!cur.data.img) { const img = await musicImage({ yt: meta.yt }); const c2 = S.items.get(id); if (img && c2) { c2.data.img = img; c2.data.link = meta; c2.data.music = cur.data.music; save(c2); return; } }
+    } else if (meta.image && !cur.data.img) {
       try {
         const r = await api('proxy?u=' + encodeURIComponent(meta.image));
         cur.data.img = await storeImage(await r.blob());
@@ -285,7 +356,7 @@ async function addFiles(files, parent) {
 /* ---------- 렌더 ---------- */
 function dims(tabId) {
   const cw = Math.min($('#main').clientWidth || window.innerWidth, 520);
-  const n = SIZES[setv(tabId, 'size')] || 4, r = RATIOS[setv(tabId, 'ratio')] || [4, 5];
+  const n = SIZES[setv(tabId, 'size')] || 4, r = RATIOS[ratioIdx(tabId)] || [4, 5];
   const W = Math.max(48, Math.floor((cw - 12) / n - 6));
   return { W, H: Math.round(W * r[1] / r[0]), n, r };
 }
@@ -303,10 +374,27 @@ function cardEl(it, D) {
   } else if (tone === 'basic') el.classList.add('basic');
   else { el.style.background = col; el.style.color = ink(col); if (tone === 'grain') el.classList.add('grain'); }
   const lt = d.link && d.link.type;
-  const ic = lt === 'music' ? I.music : lt ? I.link : (img && !photoShown) ? I.photo : '';
-  const bare = photoShown && !d.title && !d.body && !lt;
-  el.insertAdjacentHTML('beforeend', `<div class="tt"><span class="dt">${fmtDate(d.at, setv(tab, 'date'))}</span>${bare ? '' : ic + esc(titleOf(it))}</div>`);
-  const sn = photoShown ? '' : snippetOf(it);
+  const date = `<span class="dt">${fmtDate(d.at, setv(tab, 'date'))}</span>`;
+  const mu = d.music || ((lt === 'music' || lt === 'video') && d.link.title ? { title: d.link.title, artist: d.link.author } : null);
+  if (mu) {
+    el.className = 'card music'; el.style.background = (img && img.color) || col; el.style.color = '#fff';
+    el.innerHTML = '';
+    if (img) { const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); el.append(im); } else el.classList.add('grain');
+    el.append(h('div', 'ov'));
+    el.insertAdjacentHTML('beforeend', `<div class="tt">${date}</div><div class="cap"><b>${esc(mu.title || titleOf(it))}</b>${mu.artist ? `<small>${esc(mu.artist)}</small>` : ''}</div>`);
+    if (S.dirty.has(it.id)) el.append(h('i', 'up'));
+    return el;
+  }
+  const strong = !!(d.title || lt);
+  const ic = lt ? I.link : (img && !photoShown) ? I.photo : '';
+  if (strong) el.insertAdjacentHTML('beforeend', `<div class="tt">${date}${ic}${esc(titleOf(it))}</div>`);
+  else {
+    const tx = h('div', 'tt tx', date + ic + esc((d.body || '').trim()));
+    tx.style.webkitLineClamp = Math.max(1, Math.floor((D.H - 12) / 17));
+    if (photoShown && !d.body) tx.innerHTML = date;
+    el.append(tx);
+  }
+  const sn = (photoShown || !strong) ? '' : snippetOf(it);
   if (sn && D.H > 64) { const s = h('div', 'sn'); s.textContent = sn; const lines = Math.max(1, Math.floor((D.H - 62) / 16)); s.style.webkitLineClamp = lines; el.append(s); }
   if (S.dirty.has(it.id)) el.append(h('i', 'up'));
   return el;
@@ -368,7 +456,7 @@ function addHandles(el, tabId, row) {
   const drag = (hn, key, len, axis) => {
     hn.addEventListener('pointerdown', e => {
       e.preventDefault(); e.stopPropagation(); hn.setPointerCapture(e.pointerId);
-      const p0 = axis === 'y' ? e.clientY : e.clientX, i0 = setv(tabId, key); let cur = i0;
+      const p0 = axis === 'y' ? e.clientY : e.clientX, i0 = key === 'ratio' ? ratioIdx(tabId) : setv(tabId, key); let cur = i0;
       const mv = ev => {
         const dpx = axis === 'y' ? (ev.clientY - p0) : (ev.clientX - p0);
         const ni = Math.max(0, Math.min(len - 1, i0 + Math.round(dpx / (axis === 'y' ? 18 : 16))));
@@ -400,7 +488,7 @@ function setTab(id, k, v, rer = true) {
 function editPanel(tabId) {
   const p = h('div', 'edp');
   const g1 = h('div', 'grp', '<span>크기</span>'); g1.append(seg([['작게', 1], ['보통', 3], ['크게', 6]], setv(tabId, 'size'), v => setTab(tabId, 'size', v)));
-  const g2 = h('div', 'grp', '<span>비율</span>'); g2.append(seg([['가로', 9], ['정사각', 6], ['세로', 5]], setv(tabId, 'ratio'), v => setTab(tabId, 'ratio', v)));
+  const g2 = h('div', 'grp', '<span>비율</span>'); g2.append(seg([['가로', 9], ['정사각', 6], ['세로', 5]], ratioIdx(tabId), v => setTab(tabId, 'ratio', v)));
   const done = h('button', 'lnk', '완료'); done.onclick = () => { S.edit = null; render(); };
   p.append(g1, g2, done);
   return p;
@@ -483,8 +571,9 @@ function openTabSheet(id) {
       p.append(inp);
     }
     const D = dims(id);
+    p.append(srow('종류', seg([['일반', 'normal'], ['음악', 'music']], isMusic(id) ? 'music' : 'normal', v => { const x = get(id); x.data.set = x.data.set || {}; x.data.set.kind = v; if (v === 'music' && x.data.set.ratio == null) x.data.set.ratio = 6; save(x); rebuild(); }), isMusic(id) ? '곡 이름만 쳐도 찾아줌' : ''));
     p.append(srow('크기', seg([['작게', 1], ['보통', 3], ['크게', 6]], setv(id, 'size'), v => set('size', v)), D.n + '장'));
-    p.append(srow('비율', seg([['가로', 9], ['정사각', 6], ['세로', 5]], setv(id, 'ratio'), v => set('ratio', v)), D.r.join(':')));
+    p.append(srow('비율', seg([['가로', 9], ['정사각', 6], ['세로', 5]], ratioIdx(id), v => set('ratio', v)), D.r.join(':')));
     p.append(srow('톤', seg([['그레인', 'grain'], ['색', 'color'], ['기본', 'basic']], setv(id, 'tone'), v => set('tone', v))));
     const sws = h('div', 'sws'); const curC = own.color || '';
     const auto = h('button', 'sw auto' + (curC === 'auto' ? ' on' : '')); auto.title = '자동 (최근 사진 색)'; auto.onclick = () => set('color', 'auto'); sws.append(auto);
@@ -587,7 +676,7 @@ function openCard(id) {
       a.innerHTML = `<div class="m"><b>${esc(L.title || d.url)}</b><small>${esc([L.author, L.site].filter(Boolean).join(' · ') || d.url)}</small></div>${I.ext}`;
       p.append(a);
     }
-    const ti = h('input', 'f title'); ti.placeholder = '제목 (비우면 첫 줄)'; ti.value = d.title || '';
+    const ti = h('input', 'f title'); ti.placeholder = '제목 (없어도 돼요)'; ti.value = d.title || '';
     ti.oninput = () => { get(id).data.title = ti.value; touch(); };
     const bo = h('textarea', 'f'); bo.placeholder = '내용'; bo.value = d.body || '';
     bo.oninput = () => { get(id).data.body = bo.value; touch(); };
@@ -604,6 +693,11 @@ function openCard(id) {
     }
     p.append(srow('위치', null, pathText(it.parent || 'root') || '홈 (받은함)'));
     const btns = h('div', 'btns');
+    if (d.music || (!d.url && (d.body || '').trim())) {
+      const mf = h('button', 'btn', d.music ? '곡 다시 찾기' : '음악으로 찾기');
+      mf.onclick = () => { commit(); const q = d.music ? [d.music.title, d.music.artist].filter(Boolean).join(' ') : d.body.trim().split('\n')[0]; closeSheet(); openMusicPick(q, it.parent || 'root', id); };
+      btns.append(mf);
+    }
     const mv = h('button', 'btn', '옮기기'); mv.onclick = () => { commit(); openMove(id); };
     const del = h('button', 'btn danger', '삭제'); del.onclick = () => { if (!confirm('이 기록을 지울까요?')) return; const x = get(id); x.deleted = true; dirty = false; save(x); closeSheet(); toast('지웠어요'); };
     btns.append(mv, del); p.append(btns);
