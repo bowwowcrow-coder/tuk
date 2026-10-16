@@ -208,6 +208,18 @@ export async function onRequest({ request: req, env, params }) {
     return J({ items: items.slice(0, 12), src: m.length ? 'ytm' : 'fallback', err: url.searchParams.get('debug') ? ytmSearch.err || '' : undefined });
   }
 
+  if (path === 'ytmdebug') {
+    const q = url.searchParams.get('q') || 'fluquor';
+    const body = { context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q };
+    const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/' }, body: JSON.stringify(body) });
+    const j = await r.json(); const types = []; let song = null;
+    const walk = o => { if (!o || typeof o !== 'object') return;
+      if (o.musicResponsiveListItemRenderer) { const it = o.musicResponsiveListItemRenderer; const fc = it.flexColumns || []; const t1 = fc[1] && fc[1].musicResponsiveListItemFlexColumnRenderer.text; const txt = t1 && t1.runs ? t1.runs.map(x => x.text).join('') : ''; types.push(txt.slice(0, 40)); if (!song && /^(노래|Song)/.test(txt)) song = JSON.stringify(it).replace(/"(clickTrackingParams|trackingParams)":"[^"]*",?/g, '').slice(0, 3000); return; }
+      for (const k in o) walk(o[k]); };
+    walk(j);
+    return J({ types, song, items: await ytmSearch(q) });
+  }
+
   if (path === 'playlist') {
     const ids = (url.searchParams.get('ids') || '').split(',').filter(x => /^[\w-]{6,}$/.test(x)).slice(0, 50);
     if (!ids.length) return J({ error: 'no ids' }, 400);
