@@ -7,9 +7,13 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 svg{display:block}
 .ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
-#top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:8px 12px 4px 0;background:var(--bg)}
-#bc{flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;padding:0 42%;height:38px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 22%,#000 84%,transparent);mask-image:linear-gradient(90deg,transparent,#000 22%,#000 84%,transparent)}
+#top{position:sticky;top:0;z-index:5;padding:8px 0 4px;background:var(--bg)}
+#srchBtn,#homeBtn{position:absolute;top:11px}
+#homeBtn{right:12px}
+#srchBtn{right:52px}
+#bc{width:100%;display:flex;align-items:center;gap:6px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;padding:0;height:38px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 20%,#000 70%,transparent 80%);mask-image:linear-gradient(90deg,transparent,#000 20%,#000 70%,transparent 80%)}
 #bc::-webkit-scrollbar{display:none}
+#bc::before,#bc::after{content:"";flex:none;width:50%;height:1px}
 .cr{font-size:16px;color:var(--tx3);flex:none;text-underline-offset:5px;text-decoration-thickness:1.5px}
 .cr.cur{color:var(--tx);font-weight:600}
 .cr.sel{text-decoration-line:underline;color:var(--tx2)}
@@ -133,3 +137,9 @@ textarea.f{resize:none;min-height:110px;line-height:1.55}
 .dwrap .dimg{cursor:crosshair}
 .fdot{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.35);pointer-events:none}
 .dwrap+.hint{margin:-4px 0 10px;font-size:12px;color:var(--tx3)}
+
+.zrow{display:flex;gap:14px;align-items:center;padding:4px 0 12px}
+.zprev{flex:none;pointer-events:none}
+.zc{flex:1;display:flex;align-items:center;gap:10px;font-size:14px}
+.zc input{flex:1;accent-color:var(--tx)}
+.zl{font-size:12px;color:var(--tx3);width:38px;text-align:right;font-variant-numeric:tabular-nums}

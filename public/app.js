@@ -119,7 +119,7 @@ function titleOf(it) {
 }
 function snippetOf(it) {
   const d = it.data || {};
-  if (d.link && (d.link.type === 'music' || d.link.type === 'video') && !d.title && !d.body) return d.link.author || '';
+  if (d.link && (d.link.type === 'music' || d.link.type === 'video') && !d.title && !d.body) return '';
   const lines = (d.body || '').split('\n');
   if (d.title) return d.body || '';
   const i = lines.findIndex(l => l.trim());
@@ -182,6 +182,7 @@ async function pull() {
     }
     if (take.length) await idb.putMany('items', take);
     S.srv = j.srv; idb.put('kv', S.srv, 'srv');
+    if (S.pendingView && S.items.get(S.pendingView)) { S.view = S.pendingView; S.pendingView = null; }
     if (take.length) { reindex(); render(); }
     retryMeta();
   } catch (e) { if (e.message !== '401') console.warn('pull', e); }
@@ -226,10 +227,25 @@ function domColor(src) {
   const hx = v => Math.round(v / best.n).toString(16).padStart(2, '0');
   return '#' + hx(best.r) + hx(best.g) + hx(best.b);
 }
+function trimDark(src) {
+  const w = src.naturalWidth || src.width, hh = src.naturalHeight || src.height;
+  const c = document.createElement('canvas'); c.width = w; c.height = hh; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(src, 0, 0);
+  const d = x.getImageData(0, 0, w, hh).data;
+  const dark = (x0, y0, dx, dy, n) => { let s = 0, mx = 0; for (let i = 0; i < n; i++) { const k = ((y0 + dy * i) * w + (x0 + dx * i)) * 4; const v = (d[k] + d[k + 1] + d[k + 2]) / 3; s += v; if (v > mx) mx = v; } return s / n < 22 && mx < 60; };
+  let t = 0, b = hh - 1, l = 0, r = w - 1;
+  while (t < hh / 3 && dark(0, t, 1, 0, w)) t++;
+  while (b > hh * 2 / 3 && dark(0, b, 1, 0, w)) b--;
+  while (l < w / 3 && dark(l, t, 0, 1, b - t)) l++;
+  while (r > w * 2 / 3 && dark(r, t, 0, 1, b - t)) r--;
+  if (t === 0 && l === 0 && b === hh - 1 && r === w - 1) return src;
+  const o = document.createElement('canvas'); o.width = r - l + 1; o.height = b - t + 1;
+  o.getContext('2d').drawImage(c, l, t, o.width, o.height, 0, 0, o.width, o.height);
+  return o;
+}
 function squareCrop(src) {
+  src = trimDark(src);
   const w = src.naturalWidth || src.width, hh = src.naturalHeight || src.height;
   let ch = hh, y0 = 0; const ar = w / hh;
-  if (ar > 1.2 && ar < 1.5) { ch = Math.round(w * 9 / 16); y0 = Math.round((hh - ch) / 2); }
   const side = Math.min(w, ch), x0 = Math.round((w - side) / 2), yy = y0 + Math.round((ch - side) / 2);
   const c = document.createElement('canvas'); c.width = c.height = side;
   c.getContext('2d').drawImage(src, x0, yy, side, side, 0, 0, side, side);
@@ -245,6 +261,11 @@ async function storeImage(blob, opt = {}) {
   await idb.put('blobs', t, key + '_t.jpg'); await idb.put('blobs', f, key + '_f.jpg');
   S.blobURL.set(key + '_t.jpg', URL.createObjectURL(t)); S.blobURL.set(key + '_f.jpg', URL.createObjectURL(f));
   return { key, w, h: hh, color };
+}
+function applyFocus(im, img) {
+  const fx = img.fx != null ? img.fx : 0.5, fy = img.fy != null ? img.fy : 0.5;
+  if (img.fx != null) im.style.objectPosition = `${fx * 100}% ${fy * 100}%`;
+  if (img.z && img.z > 1) { im.style.transformOrigin = `${fx * 100}% ${fy * 100}%`; im.style.transform = `scale(${img.z})`; }
 }
 const imgSrc = (img, sz) => S.blobURL.get(img.key + '_' + sz + '.jpg') || '/api/img/' + img.key + '_' + sz + '.jpg';
 
@@ -285,7 +306,7 @@ async function musicImage(m) {
 }
 async function saveMusic(m, parent, cardId, q) {
   const it = cardId ? get(cardId) : newCard(parent, {});
-  it.data.music = { title: m.title, artist: m.artist || '', album: m.album || '', src: m.src };
+  it.data.music = { title: m.title, artist: m.artist || '', album: m.album || '', src: m.src, real: m.src === 'apple' || !!m.artist };
   it.data.url = m.url;
   it.data.link = { type: 'music', title: m.title, author: m.artist || '', site: 'YouTube Music', yt: m.yt || '' };
   if (cardId && q && (it.data.body || '').trim() === q) delete it.data.body;
@@ -330,7 +351,7 @@ async function fetchMeta(id) {
     const cur = S.items.get(id); if (!cur) return;
     cur.data.link = meta;
     if (meta.yt) {
-      cur.data.music = { title: meta.title || '', artist: meta.author || '', src: 'youtube' };
+      cur.data.music = { title: meta.title || '', artist: meta.author || '', src: 'youtube', real: !!meta.topic };
       if (!cur.data.img) { const img = await musicImage({ yt: meta.yt }); const c2 = S.items.get(id); if (img && c2) { c2.data.img = img; c2.data.link = meta; c2.data.music = cur.data.music; save(c2); return; } }
     } else if (meta.image && !cur.data.img) {
       try {
@@ -367,7 +388,7 @@ function cardEl(it, D) {
   const img = d.img; let photoShown = false;
   if (img && (pm === 'orig' || pm === 'blur')) {
     photoShown = true; el.style.background = img.color || col;
-    const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); if (img.fx != null) im.style.objectPosition = `${img.fx * 100}% ${img.fy * 100}%`; if (pm === 'blur') im.className = 'blur';
+    const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); applyFocus(im, img); if (pm === 'blur') im.className = 'blur';
     el.append(im, h('div', 'ov'));
   } else if (img && pm === 'color') {
     const bg = img.color || col; el.style.background = bg; el.style.color = ink(bg); if (tone !== 'color') el.classList.add('grain');
@@ -375,13 +396,14 @@ function cardEl(it, D) {
   else { el.style.background = col; el.style.color = ink(col); if (tone === 'grain') el.classList.add('grain'); }
   const lt = d.link && d.link.type;
   const date = `<span class="dt">${fmtDate(d.at, setv(tab, 'date'))}</span>`;
-  const mu = d.music || ((lt === 'music' || lt === 'video') && d.link.title ? { title: d.link.title, artist: d.link.author } : null);
+  const mu = d.music || ((lt === 'music' || lt === 'video') && d.link.title ? { title: d.link.title, artist: d.link.topic ? d.link.author : '', real: true } : null);
+  const artist = mu && mu.real ? mu.artist : '';
   if (mu) {
     el.className = 'card music'; el.style.background = (img && img.color) || col; el.style.color = '#fff';
     el.innerHTML = '';
-    if (img) { const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); if (img.fx != null) im.style.objectPosition = `${img.fx * 100}% ${img.fy * 100}%`; el.append(im); } else el.classList.add('grain');
+    if (img) { const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); applyFocus(im, img); el.append(im); } else el.classList.add('grain');
     el.append(h('div', 'ov'));
-    el.insertAdjacentHTML('beforeend', `<div class="tt">${date}</div><div class="cap"><b>${esc(d.title || mu.title || titleOf(it))}</b>${mu.artist ? `<small>${esc(mu.artist)}</small>` : ''}</div>`);
+    el.insertAdjacentHTML('beforeend', `<div class="tt">${date}</div><div class="cap"><b>${esc(d.title || mu.title || titleOf(it))}</b>${artist ? `<small>${esc(artist)}</small>` : ''}</div>`);
     if (S.dirty.has(it.id)) el.append(h('i', 'up'));
     return el;
   }
@@ -427,7 +449,7 @@ function shelf(tabId, opt = {}) {
   const subs = self ? [] : tabsOf(tabId), cards = cardsOf(tabId);
   const hd = h('div', 'hd' + (self ? '' : ' nav'));
   const label = opt.label || t.data.title || '이름 없음';
-  hd.innerHTML = `<b>${esc(label)}${self ? '' : I.chev}</b><small>${subs.length ? '탭 ' + subs.length + ' · ' : ''}${cards.length}</small>`;
+  hd.innerHTML = `<b>${esc(label)}</b>`;
   if (!self) hd.querySelector('b').onclick = () => go(tabId);
   wrap.append(hd);
   const row = h('div', 'row' + (opt.grid ? ' wrap' : ''));
@@ -506,7 +528,10 @@ function renderBC(center) {
     };
     bc.append(e);
   });
-  if (center !== false) requestAnimationFrame(() => { const l = bc.lastElementChild; bc.scrollLeft = l ? l.offsetLeft - bc.clientWidth / 2 + l.offsetWidth / 2 : 0; });
+  if (center !== false) {
+    const cen = () => { const l = bc.lastElementChild; bc.scrollLeft = l ? l.offsetLeft - bc.clientWidth / 2 + l.offsetWidth / 2 : 0; };
+    requestAnimationFrame(cen); if (document.fonts && document.fonts.ready) document.fonts.ready.then(cen);
+  }
   $('#inp').placeholder = S.view === 'root' ? '툭 던져두기' : (get(S.view).data.title || '여기') + '에 던져두기';
 }
 function render(center) {
@@ -528,7 +553,7 @@ function render(center) {
     frag.append(b);
     if (S.showClosed) closed.forEach(t => frag.append(shelf(t.id, { dim: true })));
   }
-  const add = h('button', 'addtab', I.plus + '<span>탭 추가</span>'); add.onclick = () => openNewTab(V);
+  const add = h('button', 'addtab', I.plus + '<span>추가</span>'); add.onclick = () => openNewTab(V);
   frag.append(add);
   main.replaceChildren(frag);
 }
@@ -679,6 +704,14 @@ function openCard(id) {
       };
       wrap.append(im, dot); p.append(wrap);
       p.append(h('p', 'hint', '사진을 누르면 그 부분이 카드 가운데에 보여요.'));
+      const zbox = h('div', 'zrow'), prev = h('div', 'zprev');
+      const drawPrev = () => { const x = get(id); prev.replaceChildren(cardEl(x, dims(x.parent || 'root'))); };
+      const zr = h('input'); zr.type = 'range'; zr.min = '1'; zr.max = '3'; zr.step = '0.05'; zr.value = String(d.img.z || 1);
+      const zl = h('span', 'zl', Math.round((d.img.z || 1) * 100) + '%');
+      zr.oninput = () => { const x = get(id); x.data.img.z = +zr.value; zl.textContent = Math.round(+zr.value * 100) + '%'; drawPrev(); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 600); };
+      const zc = h('div', 'zc'); zc.append(h('span', '', '확대'), zr, zl);
+      zbox.append(prev, zc); p.append(zbox); drawPrev();
+      const oldClick = im.onclick; im.onclick = e => { oldClick(e); drawPrev(); };
     }
     const pf = h('input'); pf.type = 'file'; pf.accept = 'image/*'; pf.hidden = true;
     pf.onchange = async () => {
@@ -801,7 +834,7 @@ let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTime
   } catch (e) { console.warn('idb', e); }
   reindex();
   const hv = location.hash.slice(1);
-  S.view = hv && S.items.get(hv) ? hv : 'root';
+  S.view = hv && S.items.get(hv) ? hv : 'root'; if (hv && S.view === 'root') S.pendingView = hv;
   history.replaceState({ v: S.view }, '', location.href);
   render();
   const q = new URLSearchParams(location.search);

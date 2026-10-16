@@ -34,12 +34,12 @@ async function meta(url) {
   const id = ytId(url);
   if (id) {
     const music = /music\.youtube\.com/.test(url);
-    let title = '', author = '';
+    let title = '', author = '', topic = false;
     try {
       const r = await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id));
-      if (r.ok) { const o = await r.json(); title = o.title || ''; author = (o.author_name || '').replace(/\s*-\s*Topic$/, ''); }
+      if (r.ok) { const o = await r.json(); title = cleanTitle(o.title || ''); const an = o.author_name || ''; topic = /\s-\sTopic$/.test(an); author = topic ? an.replace(/\s*-\s*Topic$/, '') : ''; }
     } catch (e) {}
-    return { type: music ? 'music' : 'video', yt: id, title, author, image: 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg', site: music ? 'YouTube Music' : 'YouTube' };
+    return { type: music ? 'music' : 'video', yt: id, title, author, topic, image: 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg', site: music ? 'YouTube Music' : 'YouTube' };
   }
   const out = { type: 'link', title: '', image: '', site: '' };
   try { out.site = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return out; }
@@ -85,7 +85,7 @@ async function ytSearch(q) {
       if (!o || typeof o !== 'object' || out.length >= 6) return;
       if (o.videoRenderer && o.videoRenderer.videoId) {
         const v = o.videoRenderer;
-        out.push({ src: 'youtube', yt: v.videoId, title: cleanTitle((v.title && v.title.runs && v.title.runs.map(t => t.text).join('')) || ''), artist: ((v.ownerText && v.ownerText.runs && v.ownerText.runs[0].text) || '').replace(/\s*-\s*Topic$/, ''), url: 'https://music.youtube.com/watch?v=' + v.videoId, art: 'https://i.ytimg.com/vi/' + v.videoId + '/mqdefault.jpg' });
+        out.push({ src: 'youtube', yt: v.videoId, title: cleanTitle((v.title && v.title.runs && v.title.runs.map(t => t.text).join('')) || ''), artist: (o => /\s-\sTopic$/.test(o) ? o.replace(/\s*-\s*Topic$/, '') : '')((v.ownerText && v.ownerText.runs && v.ownerText.runs[0].text) || ''), url: 'https://music.youtube.com/watch?v=' + v.videoId, art: 'https://i.ytimg.com/vi/' + v.videoId + '/mqdefault.jpg' });
         return;
       }
       for (const k in o) walk(o[k]);
