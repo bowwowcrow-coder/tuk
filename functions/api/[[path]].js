@@ -212,6 +212,16 @@ export async function onRequest({ request: req, env, params }) {
     return J({ items: items.slice(0, 12), src: m.length ? 'ytm' : 'fallback' });
   }
 
+  if (path === 'ytmdebug') {
+    const q = url.searchParams.get('q') || 'fluquor';
+    const body = { context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q };
+    const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/' }, body: JSON.stringify(body) });
+    const t = await r.text(); const titles = []; const re = /"musicShelfRenderer":\{"title":\{"runs":\[\{"text":"([^"]*)"/g; let m; while ((m = re.exec(t))) titles.push(m[1]);
+    const card = (t.match(/"musicCardShelfRenderer".{0,400}/) || [''])[0];
+    const items = await ytmSearch(q);
+    return J({ status: r.status, len: t.length, titles, card: card.slice(0, 400), items: items.slice(0, 3) });
+  }
+
   if (path === 'playlist') {
     const ids = (url.searchParams.get('ids') || '').split(',').filter(x => /^[\w-]{6,}$/.test(x)).slice(0, 50);
     if (!ids.length) return J({ error: 'no ids' }, 400);
