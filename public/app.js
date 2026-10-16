@@ -568,7 +568,7 @@ window.addEventListener('popstate', e => go((e.state && e.state.v) || location.h
 let sheetClose = null;
 function openSheet(build, onClose) {
   const sh = $('#sheet'), p = sh.querySelector('.panel');
-  p.innerHTML = '<div class="grab"></div>'; build(p);
+  p.className = 'panel'; p.innerHTML = '<div class="grab"></div>'; build(p);
   sh.hidden = false; sheetClose = onClose || null;
 }
 function closeSheet() {
@@ -690,6 +690,8 @@ function openCard(id) {
   const touch = () => { dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 700); };
   openSheet(p => {
     const it = get(id), d = it.data;
+    p.classList.add('cardsheet');
+    let drawPrev = () => {};
     if (d.img) {
       const wrap = h('div', 'dwrap');
       const im = h('img', 'dimg'); im.src = imgSrc(d.img, 'f'); im.alt = '';
@@ -700,63 +702,68 @@ function openCard(id) {
       im.onclick = e => {
         const r = im.getBoundingClientRect();
         const x = get(id); x.data.img.fx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); x.data.img.fy = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
-        place(); dirty = true; commit(); toast('카드에 보일 부분을 바꿨어요');
+        place(); drawPrev(); dirty = true; commit();
       };
       wrap.append(im, dot); p.append(wrap);
-      p.append(h('p', 'hint', '사진을 누르면 그 부분이 카드 가운데에 보여요.'));
-      const zbox = h('div', 'zrow'), prev = h('div', 'zprev');
-      const drawPrev = () => { const x = get(id); prev.replaceChildren(cardEl(x, dims(x.parent || 'root'))); };
-      const zr = h('input'); zr.type = 'range'; zr.min = '1'; zr.max = '3'; zr.step = '0.05'; zr.value = String(d.img.z || 1);
-      const zl = h('span', 'zl', Math.round((d.img.z || 1) * 100) + '%');
-      zr.oninput = () => { const x = get(id); x.data.img.z = +zr.value; zl.textContent = Math.round(+zr.value * 100) + '%'; drawPrev(); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 600); };
-      const zc = h('div', 'zc'); zc.append(h('span', '', '확대'), zr, zl);
-      zbox.append(prev, zc); p.append(zbox); drawPrev();
-      const oldClick = im.onclick; im.onclick = e => { oldClick(e); drawPrev(); };
     }
-    const pf = h('input'); pf.type = 'file'; pf.accept = 'image/*'; pf.hidden = true;
-    pf.onchange = async () => {
-      const f = pf.files[0]; if (!f) return;
-      try { const img = await storeImage(f); commit(); const x = get(id); x.data.img = img; save(x); closeSheet(); openCard(id); toast('사진을 바꿨어요'); }
-      catch (e) { toast('이 사진은 열 수 없어요'); }
-    };
-    p.append(pf);
+    const blk = h('div', 'blk');
     if (d.url) {
       const a = h('a', 'lk'); a.href = d.url; a.target = '_blank'; a.rel = 'noopener';
       const L = d.link || {};
       a.innerHTML = `<div class="m"><b>${esc(L.title || d.url)}</b><small>${esc([L.author, L.site].filter(Boolean).join(' · ') || d.url)}</small></div>${I.ext}`;
-      p.append(a);
+      blk.append(a);
     }
-    const ti = h('input', 'f title'); ti.placeholder = '제목 (없어도 돼요)'; ti.value = d.title || '';
+    const ti = h('input', 'f title'); ti.placeholder = '제목'; ti.value = d.title || '';
     ti.oninput = () => { get(id).data.title = ti.value; touch(); };
     const bo = h('textarea', 'f'); bo.placeholder = '내용'; bo.value = d.body || '';
-    bo.oninput = () => { get(id).data.body = bo.value; touch(); };
-    const box = h('div', 'stack'); box.append(ti, bo); p.append(box);
+    const grow = () => { bo.style.height = 'auto'; bo.style.height = Math.max(72, Math.min(320, bo.scrollHeight + 2)) + 'px'; };
+    bo.oninput = () => { get(id).data.body = bo.value; grow(); touch(); };
+    blk.append(ti, bo); p.append(blk); requestAnimationFrame(grow);
+    if (d.img) {
+      const zbox = h('div', 'zrow'), prev = h('div', 'zprev');
+      drawPrev = () => { const x = get(id); prev.replaceChildren(cardEl(x, dims(x.parent || 'root'))); };
+      const zr = h('input'); zr.type = 'range'; zr.min = '1'; zr.max = '3'; zr.step = '0.05'; zr.value = String(d.img.z || 1);
+      zr.setAttribute('aria-label', '확대');
+      zr.oninput = () => { const x = get(id); x.data.img.z = +zr.value; drawPrev(); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 600); };
+      zbox.append(prev, zr); p.append(zbox); drawPrev();
+    }
+    const pf = h('input'); pf.type = 'file'; pf.accept = 'image/*'; pf.hidden = true;
+    pf.onchange = async () => {
+      const f = pf.files[0]; if (!f) return;
+      try { const img = await storeImage(f); commit(); const x = get(id); x.data.img = img; save(x); closeSheet(); openCard(id); }
+      catch (e) { toast('이 사진은 열 수 없어요'); }
+    };
+    p.append(pf);
+    const more = h('div', 'more'); more.hidden = !S.moreOpen;
+    const tg = h('button', 'tg', I.down); tg.setAttribute('aria-label', '더보기'); tg.classList.toggle('open', !!S.moreOpen);
+    tg.onclick = () => { more.hidden = !more.hidden; S.moreOpen = !more.hidden; tg.classList.toggle('open', S.moreOpen); };
+    p.append(tg, more);
     const dt = h('input', 'f'); dt.type = 'datetime-local'; dt.style.width = 'auto'; dt.style.fontSize = '14px';
     const at = new Date(d.at || Date.now()); dt.value = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
     dt.onchange = () => { const v = new Date(dt.value).getTime(); if (!isNaN(v)) { get(id).data.at = v; touch(); } };
-    p.append(srow('날짜', dt));
+    more.append(srow('날짜', dt));
     if (d.img) {
-      p.append(srow('사진 표시', seg([['탭 설정', ''], ['원본', 'orig'], ['블러', 'blur'], ['색', 'color'], ['숨김', 'hide']], d.photo || '', v => {
+      more.append(srow('사진', seg([['탭', ''], ['원본', 'orig'], ['블러', 'blur'], ['색', 'color'], ['숨김', 'hide']], d.photo || '', v => {
         const x = get(id); if (v) x.data.photo = v; else delete x.data.photo; dirty = true; commit();
         closeSheet(); openCard(id);
       })));
     }
-    p.append(srow('위치', null, pathText(it.parent || 'root') || '홈 (받은함)'));
+    more.append(srow('위치', null, pathText(it.parent || 'root') || '홈'));
     const btns = h('div', 'btns');
     if (d.music || (!d.url && (d.body || '').trim())) {
-      const mf = h('button', 'btn', d.music ? '곡 다시 찾기' : '음악으로 찾기');
+      const mf = h('button', 'btn', I.music + (d.music ? '다시 찾기' : '음악'));
       mf.onclick = () => { commit(); const q = d.music ? [d.music.title, d.music.artist].filter(Boolean).join(' ') : d.body.trim().split('\n')[0]; closeSheet(); openMusicPick(q, it.parent || 'root', id); };
       btns.append(mf);
     }
-    const ph = h('button', 'btn', d.img ? '사진 바꾸기' : '사진 넣기'); ph.onclick = () => pf.click(); btns.append(ph);
+    const ph = h('button', 'btn', I.photo + (d.img ? '바꾸기' : '사진')); ph.onclick = () => pf.click(); btns.append(ph);
     if (d.img) {
       const rm = h('button', 'btn', '사진 빼기');
-      rm.onclick = () => { commit(); const x = get(id); delete x.data.img; delete x.data.photo; save(x); closeSheet(); openCard(id); toast('사진을 뺐어요'); };
+      rm.onclick = () => { commit(); const x = get(id); delete x.data.img; delete x.data.photo; save(x); closeSheet(); openCard(id); };
       btns.append(rm);
     }
     const mv = h('button', 'btn', '옮기기'); mv.onclick = () => { commit(); openMove(id); };
-    const del = h('button', 'btn danger', '삭제'); del.onclick = () => { if (!confirm('이 기록을 지울까요?')) return; const x = get(id); x.deleted = true; dirty = false; save(x); closeSheet(); toast('지웠어요'); };
-    btns.append(mv, del); p.append(btns);
+    const del = h('button', 'btn danger', '삭제'); del.onclick = () => { if (!confirm('이 기록을 지울까요?')) return; const x = get(id); x.deleted = true; dirty = false; save(x); closeSheet(); };
+    btns.append(mv, del); more.append(btns);
   }, () => { clearTimeout(tmr); commit(); });
 }
 

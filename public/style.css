@@ -136,10 +136,21 @@ textarea.f{resize:none;min-height:110px;line-height:1.55}
 .dwrap{position:relative}
 .dwrap .dimg{cursor:crosshair}
 .fdot{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.35);pointer-events:none}
-.dwrap+.hint{margin:-4px 0 10px;font-size:12px;color:var(--tx3)}
 
-.zrow{display:flex;gap:14px;align-items:center;padding:4px 0 12px}
+.zrow{display:flex;gap:14px;align-items:center;padding:12px 2px 4px}
 .zprev{flex:none;pointer-events:none}
-.zc{flex:1;display:flex;align-items:center;gap:10px;font-size:14px}
-.zc input{flex:1;accent-color:var(--tx)}
-.zl{font-size:12px;color:var(--tx3);width:38px;text-align:right;font-variant-numeric:tabular-nums}
+.zrow input{flex:1;accent-color:var(--tx)}
+
+.cardsheet .dimg{margin-bottom:12px}
+.blk{background:var(--bg);border-radius:12px;overflow:hidden}
+.blk .lk{margin:0;border-radius:0;background:none}
+.blk .f{background:none;border:0;border-radius:0}
+.blk>*+*{border-top:.5px solid var(--line)}
+.blk .f.title{padding:12px 12px 8px}
+.blk textarea.f{min-height:72px;padding:10px 12px 12px}
+.tg{display:flex;justify-content:center;width:100%;padding:12px 0 2px;color:var(--tx3)}
+.tg .ic{transition:transform .18s}
+.tg.open .ic{transform:rotate(180deg)}
+.more{padding-top:4px}
+.more .sr:first-child{border-top:0}
+.btn .ic{width:15px;height:15px;display:inline-block;vertical-align:-3px;margin-right:4px}
