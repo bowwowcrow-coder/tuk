@@ -210,16 +210,23 @@ export async function onRequest({ request: req, env, params }) {
 
   if (path === 'ytmdebug') {
     const q = url.searchParams.get('q') || 'fluquor';
-    const H = { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/' };
-    const ps = ['EgWKAQIIAWoMEA4QChADEAQQCRAF', 'EgWKAQIIAWoKEAoQAxAEEAkQBQ%3D%3D', 'EgWKAQIIAWoKEAoQAxAEEAkQBQ==', 'EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D', 'EgWKAQIIAWoOEAMQBBAJEA4QChAFEBU%3D', 'EgWKAQIIAWoOEAMQBBAJEA4QChAFEBU=', 'EgWKAQIQAWoMEA4QChADEAQQCRAF'];
+    const H = { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/', 'x-origin': 'https://music.youtube.com', 'x-youtube-client-name': '67', 'x-youtube-client-version': '1.20241030.01.00' };
     const out = [];
-    for (const params of ps) {
-      try {
-        const body = { context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q, params };
-        const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: H, body: JSON.stringify(body) });
-        const t = await r.text(); out.push([params, r.status, t.length, (t.match(/"videoId":"([\w-]{11})"/g) || []).length, (t.match(/"text":"(노래|동영상)"/) || [])[1] || '']);
-      } catch (e) { out.push([params, 'err', String(e)]); }
-    }
+    try {
+      const r0 = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { method: 'POST', headers: H, body: JSON.stringify({ context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q }) });
+      const j0 = await r0.json(); const vd = j0.responseContext && j0.responseContext.visitorData; out.push(['visitor', vd]);
+      const tries = [['vd+songs', { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR', visitorData: vd }, 'EgWKAQIIAWoMEA4QChADEAQQCRAF'],
+        ['vd+songs+en', { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'en', gl: 'US', visitorData: vd }, 'EgWKAQIIAWoMEA4QChADEAQQCRAF'],
+        ['android+songs', { clientName: 'ANDROID_MUSIC', clientVersion: '6.42.52', hl: 'en', gl: 'US', androidSdkVersion: 30 }, 'EgWKAQIIAWoMEA4QChADEAQQCRAF'],
+        ['android+none', { clientName: 'ANDROID_MUSIC', clientVersion: '6.42.52', hl: 'en', gl: 'US', androidSdkVersion: 30 }, null]];
+      for (const [name, client, params] of tries) {
+        const body = { context: { client }, query: q }; if (params) body.params = params;
+        const hh = Object.assign({}, H, vd ? { 'x-goog-visitor-id': vd } : {});
+        if (client.clientName === 'ANDROID_MUSIC') { hh['user-agent'] = 'com.google.android.apps.youtube.music/6.42.52 (Linux; U; Android 11) gzip'; delete hh.origin; delete hh.referer; delete hh['x-origin']; hh['x-youtube-client-name'] = '21'; hh['x-youtube-client-version'] = '6.42.52'; }
+        const r = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyAOghZGza2MQSZkY_zfZ370N-PUdXEo8AI&prettyPrint=false', { method: 'POST', headers: hh, body: JSON.stringify(body) });
+        const t = await r.text(); out.push([name, r.status, t.length, (t.match(/"videoId":"([\w-]{11})"/g) || []).length, (t.match(/"text":"(노래|동영상|Song|Video)"/) || [])[1] || '', t.slice(0, 120)]);
+      }
+    } catch (e) { out.push(['err', String(e)]); }
     return J(out);
   }
 
