@@ -10,8 +10,8 @@ const I = {
   search: sv('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>'),
   photo: sv('<rect x="3.5" y="5" width="17" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-9 8"/>'),
   up: sv('<path d="M12 19V5M6 11l6-6 6 6"/>'),
-  folder: sv('<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>'),
-  link: sv('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
+  folder: sv('<rect x="4.5" y="5.5" width="15" height="13" rx="2.5"/>'),
+  link: sv('<path d="M9.5 14.5l5-5"/><path d="M11.5 7.5l1.2-1.2a3.3 3.3 0 0 1 4.7 4.7L16.2 12.2"/><path d="M12.5 16.5l-1.2 1.2a3.3 3.3 0 0 1-4.7-4.7l1.2-1.2"/>'),
   music: sv('<path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>'),
   chev: sv('<path d="M9 6l6 6-6 6"/>'),
   down: sv('<path d="M6 9l6 6 6-6"/>'),
@@ -19,7 +19,7 @@ const I = {
   plus: sv('<path d="M12 5v14M5 12h14"/>'),
   upc: sv('<path d="M6 15l6-6 6 6"/>'),
   trash: sv('<path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/>'),
-  folderPlus: sv('<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5h5"/>'),
+  folderPlus: sv('<rect x="4.5" y="5.5" width="15" height="13" rx="2.5"/><path d="M12 9v6M9 12h6"/>'),
   move: sv('<path d="M5 12h14M13 6l6 6-6 6"/><path d="M3 5v14"/>'),
   eyeOff: sv('<path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10 10 0 0 1 12 5c5 0 8.5 4 9.5 7a13 13 0 0 1-2.2 3.4M6.6 6.6C4.4 8 3 10 2.5 12c1 3 4.5 7 9.5 7a9.6 9.6 0 0 0 4.4-1"/>'),
   blur: sv('<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 17a3 3 0 0 0 3-3"/>'),
@@ -590,15 +590,24 @@ function go(id, noPush) {
 window.addEventListener('popstate', e => go((e.state && e.state.v) || location.hash.slice(1) || 'root', true));
 
 /* ---------- 시트 ---------- */
-let sheetClose = null;
+let sheetClose = null, closing = false;
 function openSheet(build, onClose) {
   const sh = $('#sheet'), p = sh.querySelector('.panel');
-  p.className = 'panel'; p.innerHTML = '<div class="grab"></div>'; build(p);
-  sh.hidden = false; sheetClose = onClose || null;
+  closing = false; p.className = 'panel'; p.style.transform = ''; p.style.transition = ''; p.innerHTML = '<div class="grab"></div>'; build(p);
+  sh.hidden = false; p.scrollTop = 0; sheetClose = onClose || null;
+  const g = p.querySelector('.grab');
+  g.onpointerdown = e => {
+    e.preventDefault(); g.setPointerCapture(e.pointerId); const y0 = e.clientY; let dy = 0; p.style.transition = 'none';
+    const mv = ev => { dy = Math.max(0, ev.clientY - y0); p.style.transform = `translateY(${dy}px)`; };
+    const up = () => { g.removeEventListener('pointermove', mv); g.removeEventListener('pointerup', up); g.removeEventListener('pointercancel', up); p.style.transition = ''; if (dy > 90) closeSheet(); else p.style.transform = ''; };
+    g.addEventListener('pointermove', mv); g.addEventListener('pointerup', up); g.addEventListener('pointercancel', up);
+  };
 }
 function closeSheet() {
-  const sh = $('#sheet'); if (sh.hidden) return;
-  sh.hidden = true; const f = sheetClose; sheetClose = null; if (f) f();
+  const sh = $('#sheet'); if (sh.hidden || closing) return;
+  closing = true; const p = sh.querySelector('.panel'); p.style.transform = 'translateY(105%)';
+  const f = sheetClose; sheetClose = null; if (f) f();
+  setTimeout(() => { if (closing) { sh.hidden = true; closing = false; p.style.transform = ''; } }, 240);
 }
 $('#sheet .scrim').onclick = closeSheet;
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
@@ -709,24 +718,38 @@ function openCard(id) {
   openSheet(p => {
     const it = get(id), d = it.data;
     p.classList.add('cardsheet');
+    let pim = null, zr = null;
     if (d.img) {
-      const im = h('img', 'dimg'); im.src = imgSrc(d.img, 'f'); im.alt = '';
-      im.onerror = () => { im.onerror = null; im.src = imgSrc(d.img, 't'); };
-      if (d.url) { const a = h('a'); a.href = d.url; a.target = '_blank'; a.rel = 'noopener'; a.append(im); p.append(a); } else p.append(im);
+      const D = dims(it.parent || 'root');
+      const ed = h('div', 'ed'); ed.style.aspectRatio = D.r[0] + ' / ' + D.r[1]; ed.style.background = d.img.color || colorOf(it.parent || 'root');
+      pim = h('img'); pim.src = imgSrc(d.img, 'f'); pim.alt = ''; pim.draggable = false;
+      pim.onerror = () => { pim.onerror = null; pim.src = imgSrc(d.img, 't'); };
+      applyFocus(pim, d.img); ed.append(pim); p.append(ed);
+      const pts = new Map(); let z0 = 1, d0 = 0;
+      const geo = () => { const im = get(id).data.img, W = ed.clientWidth, H = ed.clientHeight, z = im.z || 1, ar = (im.w || 1) / (im.h || 1), car = W / H; const sw = (ar > car ? H * ar : W) * z, shh = (ar > car ? H : W / ar) * z; return { im, ex: Math.max(1, sw - W), ey: Math.max(1, shh - H) }; };
+      const setZ = z => { const x = get(id); x.data.img.z = Math.max(1, Math.min(3, z)); if (zr) zr.value = String(x.data.img.z); applyFocus(pim, x.data.img); };
+      ed.addEventListener('pointerdown', e => { e.preventDefault(); ed.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) { const [a, b] = [...pts.values()]; d0 = Math.hypot(a.x - b.x, a.y - b.y); z0 = get(id).data.img.z || 1; } });
+      ed.addEventListener('pointermove', e => {
+        if (!pts.has(e.pointerId)) return;
+        const prev = pts.get(e.pointerId); const g = geo(); if (g.im.fx == null) { g.im.fx = 0.5; g.im.fy = 0.5; }
+        if (pts.size === 1) { g.im.fx = Math.max(0, Math.min(1, g.im.fx - (e.clientX - prev.x) / g.ex)); g.im.fy = Math.max(0, Math.min(1, g.im.fy - (e.clientY - prev.y) / g.ey)); applyFocus(pim, g.im); }
+        pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pts.size === 2) { const [a, b] = [...pts.values()]; const dd = Math.hypot(a.x - b.x, a.y - b.y); if (d0) setZ(z0 * dd / d0); }
+        dirty = true;
+      });
+      const end = e => { pts.delete(e.pointerId); if (!pts.size) { clearTimeout(tmr); tmr = setTimeout(commit, 300); } };
+      ed.addEventListener('pointerup', end); ed.addEventListener('pointercancel', end);
+      ed.addEventListener('wheel', e => { e.preventDefault(); setZ((get(id).data.img.z || 1) * (e.deltaY < 0 ? 1.06 : 0.94)); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 400); }, { passive: false });
     }
     const blk = h('div', 'blk');
-    if (d.url) {
-      const a = h('a', 'lk'); a.href = d.url; a.target = '_blank'; a.rel = 'noopener';
-      const L = d.link || {}; let site = L.site || ''; try { if (!site) site = new URL(d.url).hostname.replace(/^www\./, ''); } catch (e) {}
-      a.innerHTML = `<div class="m"><b>${esc(L.title || d.url)}</b>${site ? `<small>${esc(site)}</small>` : ''}</div>${I.ext}`;
-      blk.append(a);
-    }
     const ti = h('input', 'f title'); ti.placeholder = '제목'; ti.value = d.title || '';
     ti.oninput = () => { get(id).data.title = ti.value; touch(); };
+    const trow = h('div', 'trow'); trow.append(ti);
+    if (d.url) { const a = h('a', 'lico', d.music || (d.link && (d.link.type === 'music' || d.link.type === 'video')) ? I.music : I.link); a.href = d.url; a.target = '_blank'; a.rel = 'noopener'; trow.append(a); }
     const bo = h('textarea', 'f'); bo.placeholder = '내용'; bo.value = d.body || '';
     const grow = () => { bo.style.height = 'auto'; bo.style.height = Math.max(72, Math.min(320, bo.scrollHeight + 2)) + 'px'; };
     bo.oninput = () => { get(id).data.body = bo.value; grow(); touch(); };
-    blk.append(ti, bo); p.append(blk); requestAnimationFrame(grow);
+    blk.append(trow, bo); p.append(blk); requestAnimationFrame(grow);
 
     const more = h('div', 'more'); more.hidden = !S.moreOpen;
     const tg = h('button', 'tg', I.down); tg.type = 'button'; tg.classList.toggle('open', !!S.moreOpen);
@@ -742,28 +765,10 @@ function openCard(id) {
     p.append(pf);
 
     if (d.img) {
-      const zbox = h('div', 'zrow'), prev = h('div', 'zprev');
-      let pim = null;
-      const drawPrev = () => { const x = get(id); const el = cardEl(x, dims(x.parent || 'root')); prev.replaceChildren(el); pim = el.querySelector('img'); };
-      drawPrev();
-      prev.addEventListener('pointerdown', e => {
-        e.preventDefault(); prev.setPointerCapture(e.pointerId);
-        const x = get(id), im = x.data.img, D = dims(x.parent || 'root');
-        let lx = e.clientX, ly = e.clientY; if (im.fx == null) { im.fx = 0.5; im.fy = 0.5; }
-        const z = im.z || 1;
-        const ar = (im.w || 1) / (im.h || 1), car = D.W / D.H;
-        const sw = (ar > car ? D.H * ar : D.W) * z, shh = (ar > car ? D.H : D.W / ar) * z;
-        const ex = Math.max(1, sw - D.W), ey = Math.max(1, shh - D.H);
-        const mv = ev => {
-          im.fx = Math.max(0, Math.min(1, im.fx - (ev.clientX - lx) / ex)); im.fy = Math.max(0, Math.min(1, im.fy - (ev.clientY - ly) / ey));
-          lx = ev.clientX; ly = ev.clientY; if (pim) applyFocus(pim, im);
-        };
-        const up = () => { prev.removeEventListener('pointermove', mv); prev.removeEventListener('pointerup', up); prev.removeEventListener('pointercancel', up); dirty = true; commit(); };
-        prev.addEventListener('pointermove', mv); prev.addEventListener('pointerup', up); prev.addEventListener('pointercancel', up);
-      });
-      const zr = h('input'); zr.type = 'range'; zr.min = '1'; zr.max = '3'; zr.step = '0.05'; zr.value = String(d.img.z || 1);
-      zr.oninput = () => { const x = get(id); x.data.img.z = +zr.value; if (pim) applyFocus(pim, x.data.img); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 600); };
-      zbox.append(prev, zr); more.append(zbox);
+      const zbox = h('div', 'zrow');
+      zr = h('input'); zr.type = 'range'; zr.min = '1'; zr.max = '3'; zr.step = '0.05'; zr.value = String(d.img.z || 1);
+      zr.oninput = () => { const x = get(id); x.data.img.z = +zr.value; applyFocus(pim, x.data.img); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 600); };
+      zbox.append(zr); more.append(zbox);
     }
     const dt = h('input', 'f dt'); dt.type = 'datetime-local';
     const at = new Date(d.at || Date.now()); dt.value = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
