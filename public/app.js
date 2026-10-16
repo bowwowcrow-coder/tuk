@@ -374,7 +374,7 @@ function openMusicPick(q, parent, cardId) {
         list.innerHTML = '';
         if (!j.items.length) { list.innerHTML = `<div class="nores">${I.none}</div>`; return; }
         j.items.forEach(m => {
-          const b = h('button', 'mres', `<img src="${esc(m.art)}" alt="" loading="lazy"><div><b>${esc(m.title)}</b><small>${esc([m.artist, m.album].filter(Boolean).join(' · '))}</small></div>`);
+          const b = h('button', 'mres', `<img src="${esc(m.art)}" alt="" loading="lazy"><div><b>${esc(m.title)}</b><small>${esc([m.artist, m.album, m.dur].filter(Boolean).join(' · '))}</small></div>`);
           b.type = 'button';
           b.onclick = () => { closeSheet(); saveMusic(m, parent, cardId, q); };
           list.append(b);
