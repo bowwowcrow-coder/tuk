@@ -16,7 +16,33 @@ const I = {
   chev: sv('<path d="M9 6l6 6-6 6"/>'),
   down: sv('<path d="M6 9l6 6 6-6"/>'),
   ext: sv('<path d="M14 5h5v5M19 5l-8 8M18 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4"/>'),
-  plus: sv('<path d="M12 5v14M5 12h14"/>')
+  plus: sv('<path d="M12 5v14M5 12h14"/>'),
+  upc: sv('<path d="M6 15l6-6 6 6"/>'),
+  trash: sv('<path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/>'),
+  folderPlus: sv('<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5h5"/>'),
+  move: sv('<path d="M5 12h14M13 6l6 6-6 6"/><path d="M3 5v14"/>'),
+  eyeOff: sv('<path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10 10 0 0 1 12 5c5 0 8.5 4 9.5 7a13 13 0 0 1-2.2 3.4M6.6 6.6C4.4 8 3 10 2.5 12c1 3 4.5 7 9.5 7a9.6 9.6 0 0 0 4.4-1"/>'),
+  blur: sv('<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 17a3 3 0 0 0 3-3"/>'),
+  palette: sv('<path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2s-1-2 0-3 3 0 4-1 2-2 2-4a9 9 0 0 0-8-8z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>'),
+  grain: sv('<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="8.5" cy="8.5" r=".8"/><circle cx="12" cy="11" r=".8"/><circle cx="15.5" cy="8" r=".8"/><circle cx="9" cy="14.5" r=".8"/><circle cx="14" cy="15.5" r=".8"/><circle cx="12" cy="7" r=".8"/><circle cx="16" cy="12.5" r=".8"/><circle cx="7" cy="12" r=".8"/>'),
+  solid: '<svg class="ic" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" fill="currentColor" stroke="none"/></svg>',
+  outline: sv('<rect x="4" y="4" width="16" height="16" rx="3"/>'),
+  szS: sv('<rect x="8.5" y="8.5" width="7" height="7" rx="1.5"/>'),
+  szM: sv('<rect x="6" y="6" width="12" height="12" rx="2"/>'),
+  szL: sv('<rect x="3.5" y="3.5" width="17" height="17" rx="3"/>'),
+  rWide: sv('<rect x="3.5" y="7" width="17" height="10" rx="2"/>'),
+  rSq: sv('<rect x="5" y="5" width="14" height="14" rx="2"/>'),
+  rTall: sv('<rect x="7" y="3.5" width="10" height="17" rx="2"/>'),
+  archive: sv('<rect x="3.5" y="4" width="17" height="4" rx="1"/><path d="M5 8v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/>'),
+  reset: sv('<path d="M4 12a8 8 0 1 0 2.3-5.7"/><path d="M4 4v4.5h4.5"/>'),
+  key: sv('<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 5l2.5 2.5M14 7l2.5 2.5"/>'),
+  text: sv('<path d="M5 6h14M12 6v13M9 19h6"/>'),
+  check: sv('<path d="M5 12l5 5 9-10"/>'),
+  left: sv('<path d="M15 6l-6 6 6 6"/>'),
+  right: sv('<path d="M9 6l6 6-6 6"/>'),
+  date1: sv('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/>'),
+  clock: sv('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  none: sv('<circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/>')
 };
 
 /* ---------- 설정 단계 ---------- */
@@ -317,28 +343,24 @@ async function saveMusic(m, parent, cardId, q) {
 }
 function openMusicPick(q, parent, cardId) {
   openSheet(p => {
-    p.append(h('div', 'sh-t', '어떤 곡이에요?'));
     const inp = h('input', 'f'); inp.type = 'search'; inp.value = q; inp.enterKeyHint = 'search';
-    const list = h('div');
-    p.append(inp, list);
-    const btns = h('div', 'btns');
-    const plain = h('button', 'btn', cardId ? '닫기' : '글로만 저장');
-    plain.onclick = () => { closeSheet(); if (!cardId) { const it = newCard(parent, { body: q }); save(it); } };
-    btns.append(plain); p.append(btns);
+    const plain = iconBtn(I.text, () => { closeSheet(); if (!cardId) { const it = newCard(parent, { body: q }); save(it); } });
+    const row = h('div', 'inrow'); row.append(inp, plain); p.append(row);
+    const list = h('div', 'mlist'); p.append(list);
     const run = async () => {
       const qq = inp.value.trim(); if (!qq) return;
-      list.innerHTML = '<p class="hint">찾는 중…</p>';
+      list.innerHTML = '<div class="spin"></div>';
       try {
         const j = await (await api('music?q=' + encodeURIComponent(qq))).json();
         list.innerHTML = '';
-        if (!j.items.length) { list.innerHTML = '<p class="hint">못 찾았어요. 이름이나 가수를 바꿔서 찾아보세요.</p>'; return; }
+        if (!j.items.length) { list.innerHTML = `<div class="nores">${I.none}</div>`; return; }
         j.items.forEach(m => {
-          const b = h('button', 'mres', `<img src="${esc(m.art)}" alt="" loading="lazy"><div><b>${esc(m.title)}</b><small>${esc([m.artist, m.album].filter(Boolean).join(' · '))}</small></div><span class="srcb">${m.src === 'apple' ? 'Apple' : 'YouTube'}</span>`);
+          const b = h('button', 'mres', `<img src="${esc(m.art)}" alt="" loading="lazy"><div><b>${esc(m.title)}</b><small>${esc([m.artist, m.album].filter(Boolean).join(' · '))}</small></div>`);
           b.type = 'button';
-          b.onclick = () => { closeSheet(); saveMusic(m, parent, cardId, q); toast('음악으로 저장했어요'); };
+          b.onclick = () => { closeSheet(); saveMusic(m, parent, cardId, q); };
           list.append(b);
         });
-      } catch (e) { list.innerHTML = '<p class="hint">지금은 찾을 수 없어요.</p>'; }
+      } catch (e) { list.innerHTML = `<div class="nores">${I.none}</div>`; }
     };
     inp.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); run(); } };
     run();
@@ -425,8 +447,7 @@ function folderEl(t, D) {
   const tone = setv(t.id, 'tone'), col = colorOf(t.id);
   const el = h('div', 'card folder'); el.style.width = D.W + 'px'; el.style.height = D.H + 'px';
   if (tone === 'basic') el.classList.add('basic'); else { el.style.background = col; el.style.color = ink(col); if (tone === 'grain') el.classList.add('grain'); }
-  const nt = tabsOf(t.id).length, nc = cardsOf(t.id).length;
-  el.innerHTML += `<div class="tt">${I.folder}${esc(t.data.title || '이름 없음')}</div><div class="cnt">${nt ? '탭 ' + nt + ' · ' : ''}${nc}</div>`;
+  el.innerHTML += `<div class="tt">${I.folder}${esc(t.data.title || '')}</div>`;
   return el;
 }
 function gesture(el, onTap, onLong) {
@@ -447,16 +468,13 @@ function shelf(tabId, opt = {}) {
   const D = dims(tabId);
   const self = !!opt.self;
   const subs = self ? [] : tabsOf(tabId), cards = cardsOf(tabId);
-  const hd = h('div', 'hd' + (self ? '' : ' nav'));
-  const label = opt.label || t.data.title || '이름 없음';
-  hd.innerHTML = `<b>${esc(label)}</b>`;
-  if (!self) hd.querySelector('b').onclick = () => go(tabId);
-  wrap.append(hd);
+  if (!self) {
+    const hd = h('div', 'hd nav'); hd.innerHTML = `<b>${esc(t.data.title || '')}</b>`;
+    hd.querySelector('b').onclick = () => go(tabId); wrap.append(hd);
+  } else wrap.classList.add('selfshelf');
   const row = h('div', 'row' + (opt.grid ? ' wrap' : ''));
   const list = [...subs.map(s => ({ s })), ...cards.map(c => ({ c }))];
-  if (!list.length) {
-    row.append(h('div', 'empty', self ? (tabId === 'root' ? '아래 입력창에 툭 던져두면 여기 쌓여요.' : '아직 비어 있어요. 이 탭에 있을 때 던진 건 여기로 들어와요.') : '비어 있음'));
-  }
+  if (!list.length) row.append(h('div', 'empty'));
   list.forEach((x, i) => {
     const el = x.s ? folderEl(x.s, D) : cardEl(x.c, D);
     if (S.edit === tabId && i === 0) addHandles(el, tabId, row);
@@ -472,7 +490,7 @@ function shelf(tabId, opt = {}) {
 }
 function addHandles(el, tabId, row) {
   const D = dims(tabId);
-  const ov = h('div', 'ed-ov', `<b>${D.r[0]}:${D.r[1]}</b><span>${D.n}장</span>`);
+  const ov = h('div', 'ed-ov', `<b>${D.r[0]}:${D.r[1]}</b>`);
   const hb = h('div', 'hb', '<i></i>'), hr = h('div', 'hr', '<i></i>');
   el.append(ov, hb, hr);
   const drag = (hn, key, len, axis) => {
@@ -486,7 +504,7 @@ function addHandles(el, tabId, row) {
         const tmp = Object.assign({}, get(tabId).data.set); const t = get(tabId); t.data.set = t.data.set || {}; t.data.set[key] = ni;
         const nd = dims(tabId);
         [...row.children].forEach(k => { if (k.classList.contains('card')) { k.style.width = nd.W + 'px'; k.style.height = nd.H + 'px'; } });
-        ov.innerHTML = `<b>${nd.r[0]}:${nd.r[1]}</b><span>${nd.n}장</span>`;
+        ov.innerHTML = `<b>${nd.r[0]}:${nd.r[1]}</b>`;
         if (navigator.vibrate) navigator.vibrate(6);
         void tmp;
       };
@@ -497,11 +515,20 @@ function addHandles(el, tabId, row) {
   drag(hb, 'ratio', RATIOS.length, 'y');
   drag(hr, 'size', SIZES.length, 'x');
 }
-function seg(opts, cur, fn) {
-  const s = h('div', 'seg');
-  opts.forEach(([label, val]) => { const b = h('button', val === cur ? 'on' : '', esc(label)); b.type = 'button'; b.onclick = () => fn(val); s.append(b); });
+function seg(opts, cur, fn, opt = {}) {
+  const s = h('div', 'seg' + (opt.icon ? ' isg' : ''));
+  opts.forEach(([label, val]) => {
+    const on = val === cur;
+    const b = h('button', on ? 'on' : '', opt.icon ? label : esc(label)); b.type = 'button';
+    b.onclick = () => fn(on && opt.clear ? null : val);
+    s.append(b);
+  });
   return s;
 }
+const SEG_SIZE = [[I.szS, 1], [I.szM, 3], [I.szL, 6]];
+const SEG_RATIO = [[I.rWide, 9], [I.rSq, 6], [I.rTall, 5]];
+const SEG_TONE = [[I.grain, 'grain'], [I.solid, 'color'], [I.outline, 'basic']];
+const SEG_PHOTO = [[I.photo, 'orig'], [I.blur, 'blur'], [I.palette, 'color'], [I.eyeOff, 'hide']];
 function setTab(id, k, v, rer = true) {
   const t = get(id); t.data.set = t.data.set || {};
   if (v === null) delete t.data.set[k]; else t.data.set[k] = v;
@@ -509,10 +536,8 @@ function setTab(id, k, v, rer = true) {
 }
 function editPanel(tabId) {
   const p = h('div', 'edp');
-  const g1 = h('div', 'grp', '<span>크기</span>'); g1.append(seg([['작게', 1], ['보통', 3], ['크게', 6]], setv(tabId, 'size'), v => setTab(tabId, 'size', v)));
-  const g2 = h('div', 'grp', '<span>비율</span>'); g2.append(seg([['가로', 9], ['정사각', 6], ['세로', 5]], ratioIdx(tabId), v => setTab(tabId, 'ratio', v)));
-  const done = h('button', 'lnk', '완료'); done.onclick = () => { S.edit = null; render(); };
-  p.append(g1, g2, done);
+  p.append(seg(SEG_SIZE, setv(tabId, 'size'), v => setTab(tabId, 'size', v), { icon: true }));
+  p.append(seg(SEG_RATIO, ratioIdx(tabId), v => setTab(tabId, 'ratio', v), { icon: true }));
   return p;
 }
 function renderBC(center) {
@@ -521,7 +546,7 @@ function renderBC(center) {
   c.forEach((n, i) => {
     if (i) bc.append(h('span', 'cr sl', '/'));
     const last = i === c.length - 1;
-    const e = h('button', 'cr' + (last ? ' cur' : '') + (i === S.sel ? ' sel' : ''), esc(n.data.title || '이름 없음'));
+    const e = h('button', 'cr' + (last ? ' cur' : '') + (i === S.sel ? ' sel' : ''), esc(n.data.title || ''));
     e.onclick = () => {
       if (last) return openTabSheet(n.id);
       if (S.sel === i) go(n.id); else { S.sel = i; renderBC(false); }
@@ -548,12 +573,12 @@ function render(center) {
     if (cards.length || !tabs.length) frag.append(shelf(V, { self: true, label: tabs.length ? '낱장' : '카드', grid: true }));
   }
   if (closed.length) {
-    const b = h('button', 'closed', `${S.showClosed ? I.down : I.chev}<span>수납됨 · ${closed.map(t => esc(t.data.title || '이름 없음')).join(', ')}</span>`);
+    const b = h('button', 'closed', `${I.archive}<span>${closed.map(t => esc(t.data.title || '')).join(' · ')}</span>${S.showClosed ? I.upc : I.down}`);
     b.onclick = () => { S.showClosed = !S.showClosed; render(false); };
     frag.append(b);
     if (S.showClosed) closed.forEach(t => frag.append(shelf(t.id, { dim: true })));
   }
-  const add = h('button', 'addtab', I.plus + '<span>추가</span>'); add.onclick = () => openNewTab(V);
+  const add = h('button', 'addtab', I.plus); add.setAttribute('aria-label', '추가'); add.onclick = () => openNewTab(V);
   frag.append(add);
   main.replaceChildren(frag);
 }
@@ -578,62 +603,58 @@ function closeSheet() {
 $('#sheet .scrim').onclick = closeSheet;
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 1800); }
-function srow(label, ctrl, val) {
-  const r = h('div', 'sr'); r.append(h('span', '', esc(label) + (val ? `<span class="val">${esc(val)}</span>` : '')));
+function srow(label, ctrl) {
+  const r = h('div', 'sr'); if (label) r.append(h('span', 'sl', label));
   if (ctrl) r.append(ctrl); return r;
 }
+function iconBtn(icon, fn, cls) { const b = h('button', 'btn ico' + (cls ? ' ' + cls : ''), icon); b.type = 'button'; b.onclick = fn; return b; }
 
 function openTabSheet(id) {
   const isRoot = id === 'root';
   const build = p => {
     const t = get(id), own = (t.data && t.data.set) || {};
-    p.append(h('div', 'sh-t', isRoot ? '기본 설정' : '탭 설정'));
     const rebuild = () => { p.innerHTML = '<div class="grab"></div>'; build(p); };
     const set = (k, v) => { setTab(id, k, v); rebuild(); };
     if (!isRoot) {
-      const inp = h('input', 'f title'); inp.value = t.data.title || ''; inp.placeholder = '탭 이름';
-      inp.onchange = () => { const x = get(id); x.data.title = inp.value.trim() || '이름 없음'; save(x); };
+      const inp = h('input', 'f title'); inp.value = t.data.title || ''; inp.placeholder = '이름';
+      inp.onchange = () => { const x = get(id); x.data.title = inp.value.trim(); save(x); };
       p.append(inp);
     }
-    const D = dims(id);
-    p.append(srow('종류', seg([['일반', 'normal'], ['음악', 'music']], isMusic(id) ? 'music' : 'normal', v => { const x = get(id); x.data.set = x.data.set || {}; x.data.set.kind = v; if (v === 'music' && x.data.set.ratio == null) x.data.set.ratio = 6; save(x); rebuild(); }), isMusic(id) ? '곡 이름만 쳐도 찾아줌' : ''));
-    p.append(srow('크기', seg([['작게', 1], ['보통', 3], ['크게', 6]], setv(id, 'size'), v => set('size', v)), D.n + '장'));
-    p.append(srow('비율', seg([['가로', 9], ['정사각', 6], ['세로', 5]], ratioIdx(id), v => set('ratio', v)), D.r.join(':')));
-    p.append(srow('톤', seg([['그레인', 'grain'], ['색', 'color'], ['기본', 'basic']], setv(id, 'tone'), v => set('tone', v))));
+    const mus = h('button', 'tgl' + (isMusic(id) ? ' on' : ''), I.music); mus.type = 'button';
+    mus.onclick = () => { const x = get(id); x.data.set = x.data.set || {}; const v = isMusic(id) ? 'normal' : 'music'; x.data.set.kind = v; if (v === 'music' && x.data.set.ratio == null) x.data.set.ratio = 6; save(x); rebuild(); };
+    p.append(srow(null, mus));
+    p.append(srow(I.szM, seg(SEG_SIZE, setv(id, 'size'), v => set('size', v), { icon: true, clear: !isRoot })));
+    p.append(srow(I.rSq, seg(SEG_RATIO, ratioIdx(id), v => set('ratio', v), { icon: true, clear: !isRoot })));
+    p.append(srow(I.grain, seg(SEG_TONE, setv(id, 'tone'), v => set('tone', v), { icon: true, clear: !isRoot })));
     const sws = h('div', 'sws'); const curC = own.color || '';
-    const auto = h('button', 'sw auto' + (curC === 'auto' ? ' on' : '')); auto.title = '자동 (최근 사진 색)'; auto.onclick = () => set('color', 'auto'); sws.append(auto);
-    SWATCH.forEach(c => { const b = h('button', 'sw' + (curC.toLowerCase() === c.toLowerCase() ? ' on' : '')); b.style.background = c; b.onclick = () => set('color', c); sws.append(b); });
+    const auto = h('button', 'sw auto' + (curC === 'auto' ? ' on' : '')); auto.onclick = () => set('color', curC === 'auto' ? null : 'auto'); sws.append(auto);
+    SWATCH.forEach(c => { const on = curC.toLowerCase() === c.toLowerCase(); const b = h('button', 'sw' + (on ? ' on' : '')); b.style.background = c; b.onclick = () => set('color', on && !isRoot ? null : c); sws.append(b); });
     const cu = h('label', 'sw custom' + (curC && curC !== 'auto' && !SWATCH.some(c => c.toLowerCase() === curC.toLowerCase()) ? ' on' : ''), I.plus);
     if (curC && curC !== 'auto' && !SWATCH.includes(curC)) cu.style.background = curC;
     const ci = h('input'); ci.type = 'color'; ci.value = /^#[\da-f]{6}$/i.test(curC) ? curC : '#3C3489'; ci.onchange = () => set('color', ci.value); cu.append(ci); sws.append(cu);
-    p.append(srow('색', sws, curC === 'auto' ? '자동' : curC ? '' : (isRoot ? '' : '상위 따름')));
-    p.append(srow('사진', seg([['원본', 'orig'], ['블러', 'blur'], ['대표색', 'color'], ['숨김', 'hide']], setv(id, 'photo'), v => set('photo', v))));
-    p.append(srow('날짜', seg([['날짜', 'd'], ['날짜+시각', 'dt']], setv(id, 'date'), v => set('date', v))));
+    p.append(srow(I.palette, sws));
+    p.append(srow(I.photo, seg(SEG_PHOTO, setv(id, 'photo'), v => set('photo', v), { icon: true, clear: !isRoot })));
+    const now = Date.now();
+    p.append(srow(I.clock, seg([[fmtDate(now, 'd'), 'd'], [fmtDate(now, 'dt').replace('<br>', ' '), 'dt']], setv(id, 'date'), v => set('date', v), { icon: true, clear: !isRoot })));
     if (!isRoot) {
       const sib = tabsOf(t.parent || 'root'); const ix = sib.findIndex(x => x.id === id);
-      const mv = h('div', 'seg');
-      [['앞으로', -1], ['뒤로', 1]].forEach(([l, dlt]) => { const b = h('button', '', l); b.type = 'button'; b.onclick = () => { const j = ix + dlt; if (j < 0 || j >= sib.length) return; sib.forEach((x, k) => x.sort = k); const a = sib[ix], c = sib[j]; [a.sort, c.sort] = [c.sort, a.sort]; sib.forEach(x => save(x, true)); render(false); rebuild(); }; mv.append(b); });
-      p.append(srow('순서', mv, `${ix + 1} / ${sib.length}`));
-      p.append(srow('수납', seg([['펼침', 0], ['수납', 1]], own.collapsed ? 1 : 0, v => set('collapsed', v ? 1 : null))));
+      const mv = h('div', 'seg isg');
+      [[I.left, -1], [I.right, 1]].forEach(([ic, dlt]) => { const b = h('button', '', ic); b.type = 'button'; b.onclick = () => { const j = ix + dlt; if (j < 0 || j >= sib.length) return; sib.forEach((x, k) => x.sort = k); const a = sib[ix], c = sib[j]; [a.sort, c.sort] = [c.sort, a.sort]; sib.forEach(x => save(x, true)); render(false); rebuild(); }; mv.append(b); });
+      const ar = h('button', 'tgl' + (own.collapsed ? ' on' : ''), I.archive); ar.type = 'button'; ar.onclick = () => set('collapsed', own.collapsed ? null : 1);
+      const wrap = h('div', 'rowr'); wrap.append(mv, ar);
+      p.append(srow(null, wrap));
     }
     const btns = h('div', 'btns');
-    if (Object.keys(own).some(k => k !== 'collapsed')) {
-      const r = h('button', 'btn', isRoot ? '기본값으로' : '상위 설정 따르기');
-      r.onclick = () => { const x = get(id); x.data.set = own.collapsed ? { collapsed: 1 } : {}; save(x); rebuild(); }; btns.append(r);
-    }
+    if (Object.keys(own).some(k => k !== 'collapsed')) btns.append(iconBtn(I.reset, () => { const x = get(id); x.data.set = own.collapsed ? { collapsed: 1 } : {}; save(x); rebuild(); }));
     if (!isRoot) {
-      const sub = h('button', 'btn', '하위 탭 추가'); sub.onclick = () => openNewTab(id); btns.append(sub);
-      const m = h('button', 'btn', '위치 옮기기'); m.onclick = () => openMove(id); btns.append(m);
-      const del = h('button', 'btn danger', '탭 삭제');
-      del.onclick = () => {
+      btns.append(iconBtn(I.folderPlus, () => openNewTab(id)));
+      btns.append(iconBtn(I.move, () => openMove(id)));
+      btns.append(iconBtn(I.trash, () => {
         const n = countDesc(id);
-        if (!confirm(`'${t.data.title}' 탭${n ? '과 안에 든 ' + n + '개' : ''}를 지울까요?`)) return;
-        markDeleted(id); closeSheet(); go(t.parent || 'root'); toast('지웠어요');
-      };
-      btns.append(del);
-    } else {
-      const k = h('button', 'btn', '비밀키 바꾸기'); k.onclick = () => lockScreen(); btns.append(k);
-    }
+        if (!confirm(`'${t.data.title}'${n ? ' + ' + n : ''} 삭제?`)) return;
+        markDeleted(id); closeSheet(); go(t.parent || 'root');
+      }, 'danger'));
+    } else btns.append(iconBtn(I.key, () => lockScreen()));
     p.append(btns);
   };
   openSheet(build);
@@ -643,18 +664,16 @@ function markDeleted(id) { for (const k of [...kids(id)]) markDeleted(k.id); con
 
 function openNewTab(parent) {
   openSheet(p => {
-    p.append(h('div', 'sh-t', parent === 'root' ? '새 탭' : `${esc(get(parent).data.title)} 안에 새 탭`));
-    const inp = h('input', 'f title'); inp.placeholder = '탭 이름'; inp.enterKeyHint = 'done';
-    const ok = h('button', 'btn pri', '만들기');
+    const inp = h('input', 'f title'); inp.placeholder = '이름'; inp.enterKeyHint = 'done';
+    const ok = iconBtn(I.check, () => make(), 'pri');
     const make = () => {
       const name = inp.value.trim(); if (!name) { inp.focus(); return; }
       const sib = tabsOf(parent);
       const t = { id: uid(), parent, kind: 'tab', sort: sib.length ? Math.max(...sib.map(x => x.sort || 0)) + 1 : 0, data: { title: name, set: {} }, updated: 0, deleted: false };
-      save(t); closeSheet(); toast(`'${name}' 탭 만듦`);
+      save(t); closeSheet();
     };
     inp.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); make(); } };
-    ok.onclick = make;
-    const box = h('div', 'stack'); box.append(inp, ok); p.append(box);
+    const box = h('div', 'inrow'); box.append(inp, ok); p.append(box);
     setTimeout(() => inp.focus(), 60);
   });
 }
@@ -663,7 +682,7 @@ function treeList(p, excludeId, onPick, currentParent) {
   const walk = (id, depth) => {
     if (id === excludeId) return;
     const n = get(id);
-    const b = h('button', '', `<span class="dot" style="background:${colorOf(id)}"></span>${esc(id === 'root' ? '홈 (받은함)' : n.data.title || '이름 없음')}`);
+    const b = h('button', '', id === 'root' ? I.home : `<span class="dot" style="background:${colorOf(id)}"></span>${esc(n.data.title || '')}`);
     b.style.paddingLeft = depth * 16 + 'px'; b.type = 'button';
     if (id === currentParent) b.disabled = true;
     b.onclick = () => onPick(id);
@@ -675,11 +694,10 @@ function treeList(p, excludeId, onPick, currentParent) {
 function openMove(id) {
   const it = get(id);
   openSheet(p => {
-    p.append(h('div', 'sh-t', '어디로 옮길까요'));
     treeList(p, it.kind === 'tab' ? id : null, target => {
       const x = get(id); x.parent = target;
       if (x.kind === 'tab') { const sib = tabsOf(target); x.sort = sib.length ? Math.max(...sib.map(s => s.sort || 0)) + 1 : 0; }
-      save(x); closeSheet(); toast((target === 'root' ? '홈' : pathText(target)) + '으로 옮김');
+      save(x); closeSheet();
     }, it.parent || 'root');
   });
 }
@@ -691,26 +709,16 @@ function openCard(id) {
   openSheet(p => {
     const it = get(id), d = it.data;
     p.classList.add('cardsheet');
-    let drawPrev = () => {};
     if (d.img) {
-      const wrap = h('div', 'dwrap');
       const im = h('img', 'dimg'); im.src = imgSrc(d.img, 'f'); im.alt = '';
       im.onerror = () => { im.onerror = null; im.src = imgSrc(d.img, 't'); };
-      const dot = h('i', 'fdot');
-      const place = () => { if (d.img.fx == null) { dot.hidden = true; return; } dot.hidden = false; const r = im.getBoundingClientRect(), wr = wrap.getBoundingClientRect(); dot.style.left = (r.left - wr.left + d.img.fx * r.width) + 'px'; dot.style.top = (r.top - wr.top + d.img.fy * r.height) + 'px'; };
-      im.onload = place;
-      im.onclick = e => {
-        const r = im.getBoundingClientRect();
-        const x = get(id); x.data.img.fx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); x.data.img.fy = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
-        place(); drawPrev(); dirty = true; commit();
-      };
-      wrap.append(im, dot); p.append(wrap);
+      if (d.url) { const a = h('a'); a.href = d.url; a.target = '_blank'; a.rel = 'noopener'; a.append(im); p.append(a); } else p.append(im);
     }
     const blk = h('div', 'blk');
     if (d.url) {
       const a = h('a', 'lk'); a.href = d.url; a.target = '_blank'; a.rel = 'noopener';
-      const L = d.link || {};
-      a.innerHTML = `<div class="m"><b>${esc(L.title || d.url)}</b><small>${esc([L.author, L.site].filter(Boolean).join(' · ') || d.url)}</small></div>${I.ext}`;
+      const L = d.link || {}; let site = L.site || ''; try { if (!site) site = new URL(d.url).hostname.replace(/^www\./, ''); } catch (e) {}
+      a.innerHTML = `<div class="m"><b>${esc(L.title || d.url)}</b>${site ? `<small>${esc(site)}</small>` : ''}</div>${I.ext}`;
       blk.append(a);
     }
     const ti = h('input', 'f title'); ti.placeholder = '제목'; ti.value = d.title || '';
@@ -719,14 +727,12 @@ function openCard(id) {
     const grow = () => { bo.style.height = 'auto'; bo.style.height = Math.max(72, Math.min(320, bo.scrollHeight + 2)) + 'px'; };
     bo.oninput = () => { get(id).data.body = bo.value; grow(); touch(); };
     blk.append(ti, bo); p.append(blk); requestAnimationFrame(grow);
-    if (d.img) {
-      const zbox = h('div', 'zrow'), prev = h('div', 'zprev');
-      drawPrev = () => { const x = get(id); prev.replaceChildren(cardEl(x, dims(x.parent || 'root'))); };
-      const zr = h('input'); zr.type = 'range'; zr.min = '1'; zr.max = '3'; zr.step = '0.05'; zr.value = String(d.img.z || 1);
-      zr.setAttribute('aria-label', '확대');
-      zr.oninput = () => { const x = get(id); x.data.img.z = +zr.value; drawPrev(); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 600); };
-      zbox.append(prev, zr); p.append(zbox); drawPrev();
-    }
+
+    const more = h('div', 'more'); more.hidden = !S.moreOpen;
+    const tg = h('button', 'tg', I.down); tg.type = 'button'; tg.classList.toggle('open', !!S.moreOpen);
+    tg.onclick = () => { more.hidden = !more.hidden; S.moreOpen = !more.hidden; tg.classList.toggle('open', S.moreOpen); };
+    p.append(tg, more);
+
     const pf = h('input'); pf.type = 'file'; pf.accept = 'image/*'; pf.hidden = true;
     pf.onchange = async () => {
       const f = pf.files[0]; if (!f) return;
@@ -734,42 +740,50 @@ function openCard(id) {
       catch (e) { toast('이 사진은 열 수 없어요'); }
     };
     p.append(pf);
-    const more = h('div', 'more'); more.hidden = !S.moreOpen;
-    const tg = h('button', 'tg', I.down); tg.setAttribute('aria-label', '더보기'); tg.classList.toggle('open', !!S.moreOpen);
-    tg.onclick = () => { more.hidden = !more.hidden; S.moreOpen = !more.hidden; tg.classList.toggle('open', S.moreOpen); };
-    p.append(tg, more);
-    const dt = h('input', 'f'); dt.type = 'datetime-local'; dt.style.width = 'auto'; dt.style.fontSize = '14px';
+
+    if (d.img) {
+      const zbox = h('div', 'zrow'), prev = h('div', 'zprev');
+      let pim = null;
+      const drawPrev = () => { const x = get(id); const el = cardEl(x, dims(x.parent || 'root')); prev.replaceChildren(el); pim = el.querySelector('img'); };
+      drawPrev();
+      prev.addEventListener('pointerdown', e => {
+        e.preventDefault(); prev.setPointerCapture(e.pointerId);
+        const x = get(id), im = x.data.img, D = dims(x.parent || 'root');
+        let lx = e.clientX, ly = e.clientY; if (im.fx == null) { im.fx = 0.5; im.fy = 0.5; }
+        const z = im.z || 1;
+        const ar = (im.w || 1) / (im.h || 1), car = D.W / D.H;
+        const sw = (ar > car ? D.H * ar : D.W) * z, shh = (ar > car ? D.H : D.W / ar) * z;
+        const ex = Math.max(1, sw - D.W), ey = Math.max(1, shh - D.H);
+        const mv = ev => {
+          im.fx = Math.max(0, Math.min(1, im.fx - (ev.clientX - lx) / ex)); im.fy = Math.max(0, Math.min(1, im.fy - (ev.clientY - ly) / ey));
+          lx = ev.clientX; ly = ev.clientY; if (pim) applyFocus(pim, im);
+        };
+        const up = () => { prev.removeEventListener('pointermove', mv); prev.removeEventListener('pointerup', up); prev.removeEventListener('pointercancel', up); dirty = true; commit(); };
+        prev.addEventListener('pointermove', mv); prev.addEventListener('pointerup', up); prev.addEventListener('pointercancel', up);
+      });
+      const zr = h('input'); zr.type = 'range'; zr.min = '1'; zr.max = '3'; zr.step = '0.05'; zr.value = String(d.img.z || 1);
+      zr.oninput = () => { const x = get(id); x.data.img.z = +zr.value; if (pim) applyFocus(pim, x.data.img); dirty = true; clearTimeout(tmr); tmr = setTimeout(commit, 600); };
+      zbox.append(prev, zr); more.append(zbox);
+    }
+    const dt = h('input', 'f dt'); dt.type = 'datetime-local';
     const at = new Date(d.at || Date.now()); dt.value = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
     dt.onchange = () => { const v = new Date(dt.value).getTime(); if (!isNaN(v)) { get(id).data.at = v; touch(); } };
-    more.append(srow('날짜', dt));
-    if (d.img) {
-      more.append(srow('사진', seg([['탭', ''], ['원본', 'orig'], ['블러', 'blur'], ['색', 'color'], ['숨김', 'hide']], d.photo || '', v => {
-        const x = get(id); if (v) x.data.photo = v; else delete x.data.photo; dirty = true; commit();
-        closeSheet(); openCard(id);
-      })));
-    }
-    more.append(srow('위치', null, pathText(it.parent || 'root') || '홈'));
+    const r1 = h('div', 'rowr'); r1.append(dt);
+    if (d.img) r1.append(seg(SEG_PHOTO, d.photo || '', v => { const x = get(id); if (v) x.data.photo = v; else delete x.data.photo; dirty = true; commit(); closeSheet(); openCard(id); }, { icon: true, clear: true }));
+    more.append(r1);
     const btns = h('div', 'btns');
-    if (d.music || (!d.url && (d.body || '').trim())) {
-      const mf = h('button', 'btn', I.music + (d.music ? '다시 찾기' : '음악'));
-      mf.onclick = () => { commit(); const q = d.music ? [d.music.title, d.music.artist].filter(Boolean).join(' ') : d.body.trim().split('\n')[0]; closeSheet(); openMusicPick(q, it.parent || 'root', id); };
-      btns.append(mf);
-    }
-    const ph = h('button', 'btn', I.photo + (d.img ? '바꾸기' : '사진')); ph.onclick = () => pf.click(); btns.append(ph);
-    if (d.img) {
-      const rm = h('button', 'btn', '사진 빼기');
-      rm.onclick = () => { commit(); const x = get(id); delete x.data.img; delete x.data.photo; save(x); closeSheet(); openCard(id); };
-      btns.append(rm);
-    }
-    const mv = h('button', 'btn', '옮기기'); mv.onclick = () => { commit(); openMove(id); };
-    const del = h('button', 'btn danger', '삭제'); del.onclick = () => { if (!confirm('이 기록을 지울까요?')) return; const x = get(id); x.deleted = true; dirty = false; save(x); closeSheet(); };
-    btns.append(mv, del); more.append(btns);
+    if (d.music || (!d.url && (d.body || '').trim())) btns.append(iconBtn(I.music, () => { commit(); const q = d.music ? [d.music.title, d.music.artist].filter(Boolean).join(' ') : d.body.trim().split('\n')[0]; closeSheet(); openMusicPick(q, it.parent || 'root', id); }));
+    btns.append(iconBtn(I.photo, () => pf.click()));
+    if (d.img) btns.append(iconBtn(I.eyeOff, () => { commit(); const x = get(id); delete x.data.img; delete x.data.photo; save(x); closeSheet(); openCard(id); }));
+    btns.append(iconBtn(I.move, () => { commit(); openMove(id); }));
+    btns.append(iconBtn(I.trash, () => { if (!confirm('삭제?')) return; const x = get(id); x.deleted = true; dirty = false; save(x); closeSheet(); }, 'danger'));
+    more.append(btns);
   }, () => { clearTimeout(tmr); commit(); });
 }
 
 function openSearch() {
   openSheet(p => {
-    const inp = h('input', 'f'); inp.type = 'search'; inp.placeholder = '전체에서 찾기';
+    const inp = h('input', 'f'); inp.type = 'search'; inp.placeholder = '';
     const out = h('div');
     p.append(inp, out);
     const run = () => {
@@ -784,9 +798,9 @@ function openSearch() {
         if (hits.length > 80) break;
       }
       hits.sort((a, b) => (a.kind === 'tab' ? -1 : 0) - (b.kind === 'tab' ? -1 : 0) || (b.data.at || 0) - (a.data.at || 0));
-      if (!hits.length) out.append(h('p', 'hint', '찾는 게 없어요.'));
+      if (!hits.length) out.append(h('div', 'nores', I.none));
       hits.forEach(it => {
-        const b = h('button', 'res', `<small>${esc(pathText(it.parent || 'root') || '홈')}</small><b>${it.kind === 'tab' ? I.folder.replace('class="ic"', 'class="ic" style="display:inline;width:14px;height:14px;vertical-align:-2px;margin-right:4px"') : ''}${esc(it.kind === 'tab' ? it.data.title : titleOf(it))}</b>`);
+        const b = h('button', 'res', `<small>${esc(pathText(it.parent || 'root'))}</small><b>${it.kind === 'tab' ? I.folder.replace('class="ic"', 'class="ic" style="display:inline;width:14px;height:14px;vertical-align:-2px;margin-right:4px"') : ''}${esc(it.kind === 'tab' ? it.data.title : titleOf(it))}</b>`);
         b.onclick = () => { closeSheet(); if (it.kind === 'tab') go(it.id); else { go(it.parent || 'root'); setTimeout(() => openCard(it.id), 30); } };
         out.append(b);
       });
@@ -804,7 +818,7 @@ function lockScreen(msg) {
     const ok = h('button', 'btn pri', '확인');
     const go2 = async () => {
       S.key = inp.value.trim(); try { localStorage.setItem('tuk_key', S.key); } catch (e) {}
-      try { await api('ping'); closeSheet(); toast('연결됐어요'); await pull(); push(); }
+      try { await api('ping'); closeSheet(); await pull(); push(); }
       catch (e) { if (e.message !== '401') { closeSheet(); toast('지금은 오프라인이에요'); } }
     };
     ok.onclick = go2; inp.onkeydown = e => { if (e.key === 'Enter') go2(); };
