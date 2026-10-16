@@ -367,7 +367,7 @@ function cardEl(it, D) {
   const img = d.img; let photoShown = false;
   if (img && (pm === 'orig' || pm === 'blur')) {
     photoShown = true; el.style.background = img.color || col;
-    const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); if (pm === 'blur') im.className = 'blur';
+    const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); if (img.fx != null) im.style.objectPosition = `${img.fx * 100}% ${img.fy * 100}%`; if (pm === 'blur') im.className = 'blur';
     el.append(im, h('div', 'ov'));
   } else if (img && pm === 'color') {
     const bg = img.color || col; el.style.background = bg; el.style.color = ink(bg); if (tone !== 'color') el.classList.add('grain');
@@ -379,7 +379,7 @@ function cardEl(it, D) {
   if (mu) {
     el.className = 'card music'; el.style.background = (img && img.color) || col; el.style.color = '#fff';
     el.innerHTML = '';
-    if (img) { const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); el.append(im); } else el.classList.add('grain');
+    if (img) { const im = new Image(); im.decoding = 'async'; im.loading = 'lazy'; im.alt = ''; im.src = imgSrc(img, 't'); if (img.fx != null) im.style.objectPosition = `${img.fx * 100}% ${img.fy * 100}%`; el.append(im); } else el.classList.add('grain');
     el.append(h('div', 'ov'));
     el.insertAdjacentHTML('beforeend', `<div class="tt">${date}</div><div class="cap"><b>${esc(d.title || mu.title || titleOf(it))}</b>${mu.artist ? `<small>${esc(mu.artist)}</small>` : ''}</div>`);
     if (S.dirty.has(it.id)) el.append(h('i', 'up'));
@@ -666,10 +666,27 @@ function openCard(id) {
   openSheet(p => {
     const it = get(id), d = it.data;
     if (d.img) {
+      const wrap = h('div', 'dwrap');
       const im = h('img', 'dimg'); im.src = imgSrc(d.img, 'f'); im.alt = '';
       im.onerror = () => { im.onerror = null; im.src = imgSrc(d.img, 't'); };
-      if (d.link && d.url) { const a = h('a'); a.href = d.url; a.target = '_blank'; a.rel = 'noopener'; a.append(im); p.append(a); } else p.append(im);
+      const dot = h('i', 'fdot');
+      const place = () => { if (d.img.fx == null) { dot.hidden = true; return; } dot.hidden = false; const r = im.getBoundingClientRect(), wr = wrap.getBoundingClientRect(); dot.style.left = (r.left - wr.left + d.img.fx * r.width) + 'px'; dot.style.top = (r.top - wr.top + d.img.fy * r.height) + 'px'; };
+      im.onload = place;
+      im.onclick = e => {
+        const r = im.getBoundingClientRect();
+        const x = get(id); x.data.img.fx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); x.data.img.fy = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+        place(); dirty = true; commit(); toast('카드에 보일 부분을 바꿨어요');
+      };
+      wrap.append(im, dot); p.append(wrap);
+      p.append(h('p', 'hint', '사진을 누르면 그 부분이 카드 가운데에 보여요.'));
     }
+    const pf = h('input'); pf.type = 'file'; pf.accept = 'image/*'; pf.hidden = true;
+    pf.onchange = async () => {
+      const f = pf.files[0]; if (!f) return;
+      try { const img = await storeImage(f); commit(); const x = get(id); x.data.img = img; save(x); closeSheet(); openCard(id); toast('사진을 바꿨어요'); }
+      catch (e) { toast('이 사진은 열 수 없어요'); }
+    };
+    p.append(pf);
     if (d.url) {
       const a = h('a', 'lk'); a.href = d.url; a.target = '_blank'; a.rel = 'noopener';
       const L = d.link || {};
@@ -697,6 +714,12 @@ function openCard(id) {
       const mf = h('button', 'btn', d.music ? '곡 다시 찾기' : '음악으로 찾기');
       mf.onclick = () => { commit(); const q = d.music ? [d.music.title, d.music.artist].filter(Boolean).join(' ') : d.body.trim().split('\n')[0]; closeSheet(); openMusicPick(q, it.parent || 'root', id); };
       btns.append(mf);
+    }
+    const ph = h('button', 'btn', d.img ? '사진 바꾸기' : '사진 넣기'); ph.onclick = () => pf.click(); btns.append(ph);
+    if (d.img) {
+      const rm = h('button', 'btn', '사진 빼기');
+      rm.onclick = () => { commit(); const x = get(id); delete x.data.img; delete x.data.photo; save(x); closeSheet(); openCard(id); toast('사진을 뺐어요'); };
+      btns.append(rm);
     }
     const mv = h('button', 'btn', '옮기기'); mv.onclick = () => { commit(); openMove(id); };
     const del = h('button', 'btn danger', '삭제'); del.onclick = () => { if (!confirm('이 기록을 지울까요?')) return; const x = get(id); x.deleted = true; dirty = false; save(x); closeSheet(); toast('지웠어요'); };
