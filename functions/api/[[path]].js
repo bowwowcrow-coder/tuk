@@ -199,12 +199,22 @@ export async function onRequest({ request: req, env, params }) {
 
   if (path === 'ytmdebug') {
     const q = url.searchParams.get('q') || 'fluquor';
-    const body = { context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q, params: 'EgWKAQIIAWoMEA4QChADEAQQCRAF' };
-    try {
-      const r = await fetch('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/', 'x-youtube-client-name': '67', 'x-youtube-client-version': '1.20241030.01.00' }, body: JSON.stringify(body) });
-      const t = await r.text();
-      return J({ status: r.status, len: t.length, head: t.slice(0, 600), hasItem: t.includes('musicResponsiveListItemRenderer') });
-    } catch (e) { return J({ err: String(e) }); }
+    const H = { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/' };
+    const tries = [
+      ['key+ko', 'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' }, 'EgWKAQIIAWoMEA4QChADEAQQCRAF'],
+      ['key+en', 'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'en', gl: 'US' }, 'EgWKAQIIAWoMEA4QChADEAQQCRAF'],
+      ['noparams', 'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&prettyPrint=false', { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'en', gl: 'US' }, null],
+      ['ios', 'https://music.youtube.com/youtubei/v1/search?prettyPrint=false', { clientName: 'IOS_MUSIC', clientVersion: '6.33.3', hl: 'en', gl: 'US', deviceModel: 'iPhone14,3' }, 'EgWKAQIIAWoMEA4QChADEAQQCRAF']
+    ];
+    const out = [];
+    for (const [name, u, client, params] of tries) {
+      try {
+        const body = { context: { client }, query: q }; if (params) body.params = params;
+        const r = await fetch(u, { method: 'POST', headers: H, body: JSON.stringify(body) });
+        const t = await r.text(); out.push([name, r.status, t.length, t.includes('musicResponsiveListItemRenderer'), (t.match(/"videoId":"([\w-]{11})"/) || [])[1] || '', (t.match(/"error"[^}]{0,120}/) || [''])[0]]);
+      } catch (e) { out.push([name, 'err', String(e)]); }
+    }
+    return J(out);
   }
 
   if (path === 'playlist') {
