@@ -63,6 +63,34 @@ async function meta(url) {
 function cleanTitle(t) {
   return (t || '').replace(/【[^】]*】/g, ' ').replace(/^\s*\[[^\]]*\]\s*/, '').replace(/\((official|lyrics?|mv|m\/v|audio|가사|고음질)[^)]*\)/gi, ' ').split(/\s+[|｜]\s+/)[0].replace(/\s{2,}/g, ' ').trim() || t;
 }
+async function ytmSearch(q) {
+  try {
+    const body = { context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241030.01.00', hl: 'ko', gl: 'KR' } }, query: q, params: 'EgWKAQIIAWoMEA4QChADEAQQCRAF' };
+    const r = await fetch('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', origin: 'https://music.youtube.com', referer: 'https://music.youtube.com/', 'x-youtube-client-name': '67', 'x-youtube-client-version': '1.20241030.01.00' }, body: JSON.stringify(body), cf: { cacheTtl: 3600 } });
+    if (!r.ok) return [];
+    const j = await r.json(); const out = [];
+    const txt = c => { const t = c && c.musicResponsiveListItemFlexColumnRenderer && c.musicResponsiveListItemFlexColumnRenderer.text; return t && t.runs ? t.runs : []; };
+    const walk = o => {
+      if (!o || typeof o !== 'object' || out.length >= 8) return;
+      if (o.musicResponsiveListItemRenderer) {
+        const it = o.musicResponsiveListItemRenderer;
+        const r0 = txt(it.flexColumns && it.flexColumns[0]), r1 = txt(it.flexColumns && it.flexColumns[1]);
+        const vid = (it.playlistItemData && it.playlistItemData.videoId) || (r0[0] && r0[0].navigationEndpoint && r0[0].navigationEndpoint.watchEndpoint && r0[0].navigationEndpoint.watchEndpoint.videoId);
+        if (vid) {
+          const parts = r1.map(x => x.text).join('').split('•').map(x => x.trim()).filter(Boolean);
+          const th = it.thumbnail && it.thumbnail.musicThumbnailRenderer && it.thumbnail.musicThumbnailRenderer.thumbnail && it.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
+          let art = th && th.length ? th[th.length - 1].url : '';
+          art = art.replace(/=w\d+-h\d+.*$/, '=w600-h600-l90-rj');
+          out.push({ src: 'ytm', yt: vid, title: (r0[0] && r0[0].text) || '', artist: parts[0] || '', album: parts[1] && !/^\d+:\d+$/.test(parts[1]) ? parts[1] : '', url: 'https://music.youtube.com/watch?v=' + vid, art });
+        }
+        return;
+      }
+      for (const k in o) walk(o[k]);
+    };
+    walk(j);
+    return out;
+  } catch (e) { return []; }
+}
 async function itunes(q) {
   try {
     const r = await fetch('https://itunes.apple.com/search?media=music&entity=song&limit=6&country=KR&term=' + encodeURIComponent(q), { cf: { cacheTtl: 3600 } });
@@ -161,10 +189,12 @@ export async function onRequest({ request: req, env, params }) {
   if (path === 'music') {
     const q = (url.searchParams.get('q') || '').trim().slice(0, 200);
     if (!q) return J({ items: [] });
-    const [a, y] = await Promise.all([ytSearch(q), itunes(q)]);
-    const items = [];
-    for (let i = 0; i < 6; i++) { if (y[i]) items.push(y[i]); if (a[i]) items.push(a[i]); }
-    return J({ items: items.slice(0, 10) });
+    const [m, a, y] = await Promise.all([ytmSearch(q), itunes(q), ytSearch(q)]);
+    const items = [...m];
+    const seen = new Set(m.map(x => x.yt));
+    for (let i = 0; i < 4; i++) { if (a[i]) items.push(a[i]); }
+    for (const v of y) { if (!seen.has(v.yt)) { items.push(v); if (items.length >= 12) break; } }
+    return J({ items: items.slice(0, 12), src: m.length ? 'ytm' : 'fallback' });
   }
 
   if (path === 'playlist') {

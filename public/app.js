@@ -344,7 +344,7 @@ async function musicImage(m) {
 }
 async function saveMusic(m, parent, cardId, q) {
   const it = cardId ? get(cardId) : newCard(parent, {});
-  it.data.music = { title: m.title, artist: m.artist || '', album: m.album || '', src: m.src, real: m.src === 'apple' || !!m.artist };
+  it.data.music = { title: m.title, artist: m.artist || '', album: m.album || '', src: m.src, real: m.src !== 'youtube' || !!m.artist };
   it.data.url = m.url;
   it.data.link = { type: 'music', title: m.title, author: m.artist || '', site: 'YouTube Music', yt: m.yt || '' };
   if (cardId && q && (it.data.body || '').trim() === q) delete it.data.body;
@@ -609,8 +609,9 @@ function render(center) {
     frag.append(shelf(V, { self: true }));
   }
   if (closed.length) {
-    const b = h('button', 'closed', `${I.archive}<span>${closed.map(t => esc(t.data.title || '')).join(' · ')}</span>${S.showClosed ? I.upc : I.down}`);
-    b.onclick = () => { S.showClosed = !S.showClosed; render(false); };
+    const b = h('div', 'closed', I.archive);
+    closed.forEach(t => { const n = h('button', 'cn', esc(t.data.title || '')); n.onclick = () => go(t.id); b.append(n); });
+    const tg = h('button', 'ct', S.showClosed ? I.upc : I.down); tg.onclick = () => { S.showClosed = !S.showClosed; render(false); }; b.append(tg);
     frag.append(b);
     if (S.showClosed) closed.forEach(t => frag.append(shelf(t.id, { dim: true })));
   }
@@ -738,7 +739,7 @@ function treeList(p, excludeId, onPick, currentParent) {
   const walk = (id, depth) => {
     if (id === excludeId) return;
     const n = get(id);
-    const b = h('button', '', id === 'root' ? I.home : `<span class="dot" style="background:${colorOf(id)}"></span>${esc(n.data.title || '')}`);
+    const b = h('button', '', id === 'root' ? I.home : esc(n.data.title || ''));
     b.style.paddingLeft = depth * 16 + 'px'; b.type = 'button';
     if (id === currentParent) b.disabled = true;
     b.onclick = () => onPick(id);
