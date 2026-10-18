@@ -1,4 +1,4 @@
-const V = 'tuk-v21';
+const V = 'tuk-v22';
 const SHELL = ['/', '/app.js', '/style.css', '/schedule.js', '/schedule.css', '/flip.js', '/flip.css', '/recur.mjs', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-180.png'];
 
 self.addEventListener('install', e => {

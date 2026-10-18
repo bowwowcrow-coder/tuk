@@ -3,7 +3,8 @@ import { boot, setKey } from './schedule.js';
 const sv = p => `<svg class="ic" viewBox="0 0 24 24">${p}</svg>`;
 const SQ = sv('<rect x="5" y="5" width="14" height="14" rx="2.5"/>'), CI = sv('<circle cx="12" cy="12" r="7"/>');
 const S = document.getElementById('faceS'), M = document.getElementById('faceM');
-let cur = location.hash.length > 1 ? 'M' : 'S', busy = false;
+let hasKey = false; try { hasKey = !!localStorage.getItem('tuk_key'); } catch (e) {}
+let cur = (location.hash.length > 1 || !hasKey) ? 'M' : 'S', busy = false;
 document.querySelector('#faceS .flip').innerHTML = SQ;
 document.getElementById('flipM').innerHTML = CI;
 function show(which) {
