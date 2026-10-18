@@ -1,0 +1,19 @@
+name = "tuk"
+main = "src/worker.js"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[assets]
+directory = "public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tuk"
+database_id = "REPLACE_ME"
+
+[triggers]
+crons = ["* * * * *"]
+
+[observability]
+enabled = true

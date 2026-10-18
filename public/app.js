@@ -636,7 +636,7 @@ function render(center) {
 function go(id, noPush) {
   S.view = id || 'root'; S.sel = -1; S.edit = null; S.showClosed = false;
   if (!noPush) history.pushState({ v: S.view }, '', S.view === 'root' ? location.pathname : '#' + S.view);
-  render(); window.scrollTo(0, 0);
+  render(); const fm = document.getElementById('faceM'); if (fm) fm.scrollTop = 0;
 }
 window.addEventListener('popstate', e => go((e.state && e.state.v) || location.hash.slice(1) || 'root', true));
 
@@ -910,7 +910,7 @@ function lockScreen(msg) {
     const ok = h('button', 'btn pri', '확인');
     const go2 = async () => {
       S.key = inp.value.trim(); try { localStorage.setItem('tuk_key', S.key); } catch (e) {}
-      try { await api('ping'); closeSheet(); await pull(); push(); }
+      try { await api('ping'); closeSheet(); window.dispatchEvent(new CustomEvent('tuk-key', { detail: S.key })); await pull(); push(); }
       catch (e) { if (e.message !== '401') { closeSheet(); toast('지금은 오프라인이에요'); } }
     };
     ok.onclick = go2; inp.onkeydown = e => { if (e.key === 'Enter') go2(); };
@@ -953,7 +953,7 @@ let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTime
   const q = new URLSearchParams(location.search);
   const shared = [q.get('add'), q.get('title'), q.get('text'), q.get('url')].filter(Boolean).join('\n').trim();
   if (shared) { const target = q.get('tab') && S.items.get(q.get('tab')) ? q.get('tab') : 'root'; history.replaceState({ v: S.view }, '', location.pathname + location.hash); await addText(shared, target); toast('저장했어요'); }
-  if (!S.key) lockScreen(); else { pull().then(push); retryMeta(); }
+  if (!S.key) { if (window.showFace) window.showFace('M'); lockScreen(); } else { pull().then(push); retryMeta(); }
   window.addEventListener('online', () => { pull(); push(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pull(); else push(); });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

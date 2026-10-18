@@ -1,0 +1,16 @@
+html,body{height:100%;overflow:hidden}
+body{padding:0!important}
+#stage{position:fixed;inset:0;perspective:1400px}
+.face{position:absolute;inset:0;overflow:auto;background:var(--bg);backface-visibility:hidden;-webkit-backface-visibility:hidden;transform-origin:50% 50%}
+.face[hidden]{display:none}
+.face.out{animation:fout .22s ease-in forwards}
+.face.in{animation:fin .26s ease-out}
+@keyframes fout{to{transform:rotateY(90deg);opacity:.6}}
+@keyframes fin{from{transform:rotateY(-90deg);opacity:.6}}
+#faceM{padding-top:env(safe-area-inset-top);padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+#faceM #top{position:sticky}
+#faceM #bar,#faceM #sheet,#faceM #toast,#faceS #sbar,#faceS #ssheet{position:fixed}
+.flip{color:var(--tx3)}
+.flip .ic{width:15px;height:15px}
+#flipM{position:absolute;left:6px;top:7px;z-index:2}
+#faceS .flip .ic{width:16px;height:16px}

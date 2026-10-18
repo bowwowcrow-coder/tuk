@@ -15,24 +15,45 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/schedule.css">
+<link rel="stylesheet" href="/flip.css">
 <title>툭</title>
 </head>
 <body>
-<header id="top">
-  <div id="bc"></div>
-  <button id="playBtn" class="circ" aria-label="재생" hidden></button>
-  <button id="srchBtn" class="circ" aria-label="검색"></button>
-  <button id="homeBtn" class="circ" aria-label="홈"></button>
-</header>
-<main id="main"></main>
-<form id="bar" autocomplete="off">
-  <button type="button" id="photoBtn" class="circ lg" aria-label="사진 올리기"></button>
-  <textarea id="inp" rows="1" placeholder="툭 던져두기" enterkeyhint="send"></textarea>
-  <button type="submit" id="sendBtn" class="circ lg dark" aria-label="저장"></button>
-  <input type="file" id="file" accept="image/*" multiple hidden>
-</form>
-<div id="sheet" hidden><div class="scrim"></div><div class="panel"></div></div>
-<div id="toast" role="status"></div>
+<div id="stage">
+<div id="faceS" class="face">
+  <header id="stop">
+    <button class="sbtn flip" aria-label="메모로"></button>
+    <div id="stoday"></div>
+    <button id="sbell" class="sbtn" aria-label="알림"></button>
+  </header>
+  <main id="smain"></main>
+  <form id="sbar" autocomplete="off">
+    <textarea id="sinp" rows="1" placeholder="언제 뭐" enterkeyhint="send"></textarea>
+    <button type="submit" id="ssend" aria-label="저장"></button>
+  </form>
+  <div id="ssheet" hidden><div class="sscrim"></div><div class="spanel"></div></div>
+</div>
+<div id="faceM" class="face" hidden>
+  <header id="top">
+    <button class="circ flip" id="flipM" aria-label="일정으로"></button>
+    <div id="bc"></div>
+    <button id="playBtn" class="circ" aria-label="재생" hidden></button>
+    <button id="srchBtn" class="circ" aria-label="검색"></button>
+    <button id="homeBtn" class="circ" aria-label="홈"></button>
+  </header>
+  <main id="main"></main>
+  <form id="bar" autocomplete="off">
+    <button type="button" id="photoBtn" class="circ lg" aria-label="사진 올리기"></button>
+    <textarea id="inp" rows="1" placeholder="툭 던져두기" enterkeyhint="send"></textarea>
+    <button type="submit" id="sendBtn" class="circ lg dark" aria-label="저장"></button>
+    <input type="file" id="file" accept="image/*" multiple hidden>
+  </form>
+  <div id="sheet" hidden><div class="scrim"></div><div class="panel"></div></div>
+  <div id="toast" role="status"></div>
+</div>
+</div>
 <script src="/app.js" defer></script>
+<script type="module" src="/flip.js"></script>
 </body>
 </html>
