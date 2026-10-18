@@ -17,7 +17,9 @@ const I = {
   upc: sv('<path d="M6 15l6-6 6 6"/>'),
   sq: sv('<rect x="5" y="5" width="14" height="14" rx="2"/>'),
   key: sv('<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 5l2.5 2.5M14 7l2.5 2.5"/>'),
-  x: sv('<path d="M6 6l12 12M18 6L6 18"/>')
+  x: sv('<path d="M6 6l12 12M18 6L6 18"/>'),
+  left: sv('<path d="M15 5l-7 7 7 7"/>'),
+  right: sv('<path d="M9 5l7 7-7 7"/>')
 };
 const REMIND = [['정시', { k: 'min', v: 0 }], ['10분', { k: 'min', v: 10 }], ['30분', { k: 'min', v: 30 }], ['1시간', { k: 'min', v: 60 }], ['전날 21시', { k: 'eve', v: '21:00' }], ['아침 8시', { k: 'morn', v: '08:00' }]];
 const rk = r => r.k + ':' + r.v;
@@ -71,10 +73,10 @@ async function pull() {
 
 /* ---------- 시트 (일정 면 전용) ---------- */
 let closing = false, sheetClose = null;
-function openSheet(build, onClose) {
+function openSheet(build, onClose, cls) {
   const sh = $('#ssheet'), p = sh.querySelector('.spanel');
-  closing = false; p.style.transform = ''; p.innerHTML = '<div class="sgrab"></div>'; build(p);
-  sh.hidden = false; p.scrollTop = 0; sheetClose = onClose || null;
+  closing = false; p.style.transform = ''; p.style.bottom = ''; p.className = 'spanel' + (cls ? ' ' + cls : ''); p.innerHTML = '<div class="sgrab"></div>';
+  sh.hidden = false; build(p); p.scrollTop = 0; sheetClose = onClose || null;
   const g = p.querySelector('.sgrab');
   g.onpointerdown = e => { e.preventDefault(); g.setPointerCapture(e.pointerId); const y0 = e.clientY; let dy = 0; p.style.transition = 'none';
     const mv = ev => { dy = Math.max(0, ev.clientY - y0); p.style.transform = `translateY(${dy}px)`; };
@@ -131,26 +133,81 @@ function dayShelf(list, dayMs, isPast) {
   }
   const row = h('div', 'srow');
   list.forEach(x => row.append(cardEl(x)));
-  if (dayMs != null) { const g = h('div', 'sc ghost', '+'); g.onclick = () => openEvent(null, dayMs + 9 * 3600000, true); row.append(g); }
+  if (dayMs != null) { const g = h('div', 'sc ghost', '+'); g.onclick = () => openCompose(dayMs); row.append(g); }
   sec.append(row); return sec;
 }
 
-/* ---------- 입력 ---------- */
+/* ---------- 던지기: 달력 시트 ---------- */
 function newEvent(title, start, allDay) {
   return { id: uid(), title: title || '', body: '', start, allDay: !!allDay, repeat: null, remind: [], done: false, updated: 0, deleted: false };
 }
-const inp = $('#sinp');
-function autosize() { inp.style.height = '44px'; inp.style.height = Math.min(150, inp.scrollHeight + 1) + 'px'; }
-inp.addEventListener('input', () => { autosize(); $('#sbar').classList.toggle('has', !!inp.value.trim()); });
-inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && window.matchMedia('(pointer:fine)').matches) { e.preventDefault(); submit(); } });
-$('#sbar').addEventListener('submit', e => { e.preventDefault(); submit(); });
-function submit() {
-  const txt = inp.value.trim(); if (!txt) { inp.focus(); return; }
-  inp.value = ''; autosize(); $('#sbar').classList.remove('has');
-  const p = R.parseKo(txt);
-  const ev = newEvent(p.title || txt, p.start != null ? p.start : R.dayStart(now()) + 9 * 3600000, p.allDay);
-  if (p.start == null) { openEvent(null, null, false, ev); return; }
-  save(ev);
+$('#sopen').onclick = () => openCompose();
+function openCompose(dayMs) {
+  const t0 = R.dayStart(now());
+  let sel = dayMs != null ? R.dayStart(dayMs) : t0;
+  let vp = R.kstParts(sel), vy = vp.y, vm = vp.m;   // 보고 있는 달
+  let time = '';                                     // 'HH:MM' 또는 '' (종일)
+  let vvOff = null;
+  openSheet(p => {
+    const head = h('div', 'cmh');
+    const prev = h('button', '', I.left), next = h('button', '', I.right), ttl = h('div', 'ttl');
+    prev.type = next.type = 'button';
+    prev.onclick = () => { if (--vm < 0) { vm = 11; vy--; } draw(); };
+    next.onclick = () => { if (++vm > 11) { vm = 0; vy++; } draw(); };
+    head.append(prev, ttl, next);
+    const wk = h('div', 'cmw', '일월화수목금토'.split('').map(c => `<span>${c}</span>`).join(''));
+    const grid = h('div', 'cmg');
+    const line = h('div', 'cml');
+    // 월 넘기기: 옆으로 쓸기
+    let x0 = null; grid.onpointerdown = e => { x0 = e.clientX; };
+    grid.onpointerup = e => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (dx > 48) prev.onclick(); else if (dx < -48) next.onclick(); };
+    const draw = () => {
+      const np = R.kstParts(now());
+      ttl.textContent = (vy !== np.y ? vy + '. ' : '') + (vm + 1) + '월';
+      const m0 = R.fromKST(vy, vm, 1), dim = new Date(Date.UTC(vy, vm + 1, 0)).getUTCDate(), wd0 = R.kstParts(m0).wd;
+      const has = new Map();
+      for (const x of expand(m0, R.fromKST(vy, vm, dim, 23, 59))) { const k = R.dayStart(x.occ); has.set(k, (has.get(k) || 0) + 1); }
+      grid.innerHTML = '';
+      for (let i = 0; i < wd0; i++) grid.append(h('div', 'cmd e'));
+      for (let d = 1; d <= dim; d++) {
+        const k = R.fromKST(vy, vm, d);
+        const c = h('div', 'cmd' + (k === t0 ? ' today' : '') + (k === sel ? ' sel' : '') + (k < t0 ? ' o' : ''));
+        const n = Math.min(3, has.get(k) || 0);
+        c.innerHTML = `<span class="n">${d}</span><span class="ds">${'<i></i>'.repeat(n)}</span>`;
+        c.onclick = () => { sel = k; draw(); };
+        grid.append(c);
+      }
+      const dd = (sel - t0) / R.DAY;
+      const lab = dd === 0 ? '오늘' : dd === 1 ? '내일' : R.fmtDay(sel);
+      const evs = expand(sel, sel + R.DAY - 1).map(x => x.ev.title).filter(Boolean);
+      line.textContent = lab + (evs.length ? '  ' + evs.join(' · ') : '');
+    };
+    draw();
+    // 시간 · 입력
+    const row = h('form', 'cmr'); row.autocomplete = 'off';
+    const tT = h('span', 'dtx off', '종일'), tIn = h('input'); tIn.type = 'time';
+    const tw = h('label', 'dtw'); tw.append(tT, tIn);
+    const clr = h('button', 'tiny', I.x); clr.type = 'button'; clr.hidden = true;
+    const setTime = v => { time = v; tT.textContent = v || '종일'; tT.classList.toggle('off', !v); clr.hidden = !v; };
+    tIn.onchange = () => setTime(tIn.value); clr.onclick = () => { tIn.value = ''; setTime(''); };
+    const ti = h('input', 'cmi'); ti.placeholder = '할 일 툭 던지기'; ti.enterKeyHint = 'send';
+    const send = h('button', 'cms', I.up); send.type = 'submit';
+    row.append(tw, clr, ti, send); p.append(head, wk, grid, line, row);
+    row.onsubmit = e => {
+      e.preventDefault(); const txt = ti.value.trim(); if (!txt) { ti.focus(); return; }
+      const q = R.parseKo(txt);
+      const day = q.hasDate ? R.dayStart(q.start) : sel;
+      const dp = R.kstParts(day);
+      let hh = null, mm = 0;
+      if (q.hasTime) { hh = q.hh; mm = q.mm; } else if (time) { [hh, mm] = time.split(':').map(Number); }
+      const ev = newEvent(q.title || txt, R.fromKST(dp.y, dp.m, dp.d, hh == null ? 0 : hh, mm), hh == null);
+      save(ev); closeSheet();
+    };
+    // 키보드가 올라오면 시트를 그 위로
+    const vv = window.visualViewport;
+    if (vv) { vvOff = () => { p.style.bottom = Math.max(0, window.innerHeight - vv.height - vv.offsetTop) + 'px'; }; vv.addEventListener('resize', vvOff); vv.addEventListener('scroll', vvOff); }
+    ti.focus();
+  }, () => { const vv = window.visualViewport; if (vv && vvOff) { vv.removeEventListener('resize', vvOff); vv.removeEventListener('scroll', vvOff); } }, 'compose');
 }
 
 /* ---------- 일정 시트 ---------- */

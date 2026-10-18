@@ -94,12 +94,13 @@ export function parseKo(text, now = Date.now()) {
     if (ampm === '새벽' && hh === 12) hh = 0;
     if (!ampm && hh >= 1 && hh <= 6) hh += 12; // 맥락 없는 1~6시는 오후로
   }
+  const hasDate = dateFound, hasTime = hh != null;
   if (!dateFound && hh != null) { const p = kstParts(now); y = p.y; m = p.m; d = p.d; dateFound = true; if (fromKST(y, m, d, hh, mm || 0) < now - 60000) { const q = kstParts(now + DAY); y = q.y; m = q.m; d = q.d; } }
-  if (!dateFound) return { start: null, allDay: hh == null, title: text.trim() };
+  if (!dateFound) return { start: null, allDay: hh == null, title: text.trim(), hasDate, hasTime };
   if (y == null) y = np.y; if (m == null) m = np.m;
   let start = fromKST(y, m, d, hh == null ? 0 : hh, mm || 0);
   if (!/\d{4}/.test(text) && start < dayStart(now) - DAY) start = fromKST(y + 1, m, d, hh == null ? 0 : hh, mm || 0);
-  return { start, allDay: hh == null, title: s.replace(/\s+/g, ' ').trim() };
+  return { start, allDay: hh == null, title: s.replace(/\s+/g, ' ').trim(), hasDate, hasTime, hh, mm: mm || 0 };
 }
 
 export function fmtTime(ms) { const p = kstParts(ms); return String(p.hh).padStart(2, '0') + ':' + String(p.mm).padStart(2, '0'); }
