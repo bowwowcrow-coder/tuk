@@ -100,7 +100,7 @@ function expand(from, to) {
   return list;
 }
 function cardEl(x) {
-  const { ev, occ } = x; const el = h('div', 'sc' + (ev.done ? ' done' : '') + (occ < now() && !ev.allDay ? ' past' : ''));
+  const { ev, occ } = x; const el = h('div', 'sc' + (ev.done ? ' done' : '') + (occ != null && occ < now() && !ev.allDay ? ' past' : ''));
   const t = ev.allDay ? '' : R.fmtTime(occ);
   el.innerHTML = `<div class="st">${t ? `<span class="tm">${t}</span>` : ''}${ev.remind && ev.remind.length ? '<i class="bl"></i>' : ''}${ev.repeat && ev.repeat.f ? I.repeat : ''}</div><div class="sn">${esc(ev.title || '')}</div>`;
   el.onclick = () => openEvent(ev.id, occ);
@@ -110,33 +110,48 @@ function render() {
   const main = $('#smain'); const frag = document.createDocumentFragment();
   const t0 = R.dayStart(now());
   $('#stoday').textContent = R.fmtDay(now());
+  // 맨 위: 날짜 없는 것들
+  const nd = [...S.ev.values()].filter(e => !e.deleted && e.start == null);
+  const ndList = [...nd.filter(e => !e.done).sort((a, b) => b.updated - a.updated), ...nd.filter(e => e.done).sort((a, b) => b.updated - a.updated).slice(0, 5)];
+  const top = h('div', 'srow nd');
+  ndList.forEach(ev => top.append(cardEl({ ev, occ: null })));
+  const g = h('div', 'sc ghost', '+'); g.onclick = () => openCompose(null); top.append(g);
+  frag.append(top);
   // 지난 일정 (접힘)
-  const past = expand(t0 - 60 * R.DAY, t0 - 1).reverse().filter(x => !x.ev.done).slice(0, 30);
+  const past = expand(t0 - 60 * R.DAY, t0 - 1).filter(x => !x.ev.done).slice(-30);
   if (past.length) {
     const b = h('button', 'spast', (S.showPast ? I.upc : I.down)); b.onclick = () => { S.showPast = !S.showPast; render(); };
     frag.append(b);
-    if (S.showPast) frag.append(dayShelf(past, null, true));
+    if (S.showPast) agenda(frag, past, null, true);
   }
-  const up = expand(t0, t0 + 120 * R.DAY);
-  const byDay = new Map();
-  for (const x of up) { const k = R.dayStart(x.occ); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(x); }
-  if (!byDay.has(t0)) byDay.set(t0, []);
-  [...byDay.keys()].sort((a, b) => a - b).forEach(k => frag.append(dayShelf(byDay.get(k), k)));
+  agenda(frag, expand(t0, t0 + 180 * R.DAY), t0, false);
   main.replaceChildren(frag);
 }
-function dayShelf(list, dayMs, isPast) {
-  const sec = h('section', 'sday' + (dayMs === R.dayStart(now()) ? ' today' : '') + (isPast ? ' dim' : ''));
-  if (dayMs != null) {
-    const dd = dayMs - R.dayStart(now());
-    const lab = dd === 0 ? '오늘' : dd === R.DAY ? '내일' : R.fmtDay(dayMs);
-    sec.append(h('div', 'shd', esc(lab)));
-  }
-  const row = h('div', 'srow');
-  list.forEach(x => row.append(cardEl(x)));
-  if (dayMs != null) { const g = h('div', 'sc ghost', '+'); g.onclick = () => openCompose(dayMs); row.append(g); }
-  sec.append(row); return sec;
+// 일정표: 날짜 왼쪽, 일정 막대 오른쪽. 앞 14일은 빈 날도 얇게, 그 뒤는 일정 있는 날만
+function agenda(frag, list, t0, isPast) {
+  const byDay = new Map();
+  for (const x of list) { const k = R.dayStart(x.occ); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(x); }
+  if (t0 != null) for (let i = 0; i < 14; i++) { const k = R.dayStart(t0 + i * R.DAY + 3600000); if (!byDay.has(k)) byDay.set(k, []); }
+  let lastM = null; const today = R.dayStart(now());
+  [...byDay.keys()].sort((a, b) => a - b).forEach(k => {
+    const p = R.kstParts(k);
+    if (p.m !== lastM) { if (lastM !== null || p.m !== R.kstParts(today).m || isPast) frag.append(h('div', 'agm', (p.y !== R.kstParts(today).y ? p.y + '. ' : '') + (p.m + 1) + '월')); lastM = p.m; }
+    const items = byDay.get(k);
+    const row = h('div', 'agd' + (k === today ? ' today' : '') + (items.length ? '' : ' empty') + (isPast ? ' dim' : '') + (p.wd === 0 || p.wd === 6 ? ' we' : ''));
+    row.append(h('div', 'agl', `<b>${p.d}</b><i>${k === today ? '오늘' : '일월화수목금토'[p.wd]}</i>`));
+    const col = h('div', 'agc');
+    items.forEach(x => {
+      const { ev, occ } = x;
+      const e = h('div', 'age' + (ev.done ? ' done' : '') + (!ev.allDay && occ < now() ? ' past' : ''));
+      e.innerHTML = `${ev.allDay ? '' : `<span class="tm">${R.fmtTime(occ)}</span>`}<span class="tt">${esc(ev.title || '')}</span>${ev.repeat && ev.repeat.f ? I.repeat : ''}${ev.remind && ev.remind.length ? '<i class="bl"></i>' : ''}`;
+      e.onclick = ev2 => { ev2.stopPropagation(); openEvent(ev.id, occ); };
+      col.append(e);
+    });
+    row.append(col);
+    if (!isPast) row.onclick = () => openCompose(k);
+    frag.append(row);
+  });
 }
-
 /* ---------- 던지기: 달력 시트 ---------- */
 function newEvent(title, start, allDay) {
   return { id: uid(), title: title || '', body: '', start, allDay: !!allDay, repeat: null, remind: [], done: false, updated: 0, deleted: false };
@@ -144,8 +159,8 @@ function newEvent(title, start, allDay) {
 $('#sopen').onclick = () => openCompose();
 function openCompose(dayMs) {
   const t0 = R.dayStart(now());
-  let sel = dayMs != null ? R.dayStart(dayMs) : t0;
-  let vp = R.kstParts(sel), vy = vp.y, vm = vp.m;   // 보고 있는 달
+  let sel = dayMs === null ? null : dayMs != null ? R.dayStart(dayMs) : t0;
+  let vp = R.kstParts(sel == null ? t0 : sel), vy = vp.y, vm = vp.m;   // 보고 있는 달
   let time = '';                                     // 'HH:MM' 또는 '' (종일)
   let vvOff = null;
   openSheet(p => {
@@ -174,15 +189,16 @@ function openCompose(dayMs) {
         const c = h('div', 'cmd' + (k === t0 ? ' today' : '') + (k === sel ? ' sel' : '') + (k < t0 ? ' o' : ''));
         const n = Math.min(3, has.get(k) || 0);
         c.innerHTML = `<span class="n">${d}</span><span class="ds">${'<i></i>'.repeat(n)}</span>`;
-        c.onclick = () => { sel = k; draw(); };
+        c.onclick = () => { sel = sel === k ? null : k; draw(); };
         grid.append(c);
       }
-      const dd = (sel - t0) / R.DAY;
+      if (sel == null) { line.textContent = '날짜 없이'; tw.hidden = true; clr.hidden = true; return; }
+      tw.hidden = false; clr.hidden = !time;
+      const dd = Math.round((sel - t0) / R.DAY);
       const lab = dd === 0 ? '오늘' : dd === 1 ? '내일' : R.fmtDay(sel);
       const evs = expand(sel, sel + R.DAY - 1).map(x => x.ev.title).filter(Boolean);
       line.textContent = lab + (evs.length ? '  ' + evs.join(' · ') : '');
     };
-    draw();
     // 시간 · 입력
     const row = h('form', 'cmr'); row.autocomplete = 'off';
     const tT = h('span', 'dtx off', '종일'), tIn = h('input'); tIn.type = 'time';
@@ -192,15 +208,19 @@ function openCompose(dayMs) {
     tIn.onchange = () => setTime(tIn.value); clr.onclick = () => { tIn.value = ''; setTime(''); };
     const ti = h('input', 'cmi'); ti.placeholder = '할 일 툭 던지기'; ti.enterKeyHint = 'send';
     const send = h('button', 'cms', I.up); send.type = 'submit';
-    row.append(tw, clr, ti, send); p.append(head, wk, grid, line, row);
+    row.append(tw, clr, ti, send); p.append(head, wk, grid, line, row); draw();
     row.onsubmit = e => {
       e.preventDefault(); const txt = ti.value.trim(); if (!txt) { ti.focus(); return; }
       const q = R.parseKo(txt);
       const day = q.hasDate ? R.dayStart(q.start) : sel;
-      const dp = R.kstParts(day);
-      let hh = null, mm = 0;
-      if (q.hasTime) { hh = q.hh; mm = q.mm; } else if (time) { [hh, mm] = time.split(':').map(Number); }
-      const ev = newEvent(q.title || txt, R.fromKST(dp.y, dp.m, dp.d, hh == null ? 0 : hh, mm), hh == null);
+      let ev;
+      if (day == null) ev = q.hasTime ? newEvent(q.title || txt, q.start, false) : newEvent(q.title || txt, null, true);
+      else {
+        const dp = R.kstParts(day);
+        let hh = null, mm = 0;
+        if (q.hasTime) { hh = q.hh; mm = q.mm; } else if (time) { [hh, mm] = time.split(':').map(Number); }
+        ev = newEvent(q.title || txt, R.fromKST(dp.y, dp.m, dp.d, hh == null ? 0 : hh, mm), hh == null);
+      }
       save(ev); closeSheet();
     };
     // 키보드가 올라오면 시트를 그 위로
@@ -221,24 +241,28 @@ function openEvent(id, occ, isNew, draft) {
     const bo = h('textarea', 'sf'); bo.placeholder = '메모'; bo.value = ev.body || ''; bo.oninput = () => { ev.body = bo.value; touch(); };
     p.append(ti, bo);
     // 날짜 · 시간
-    const pr = R.kstParts(ev.start);
-    const dIn = h('input'); dIn.type = 'date'; dIn.value = `${pr.y}-${String(pr.m + 1).padStart(2, '0')}-${String(pr.d).padStart(2, '0')}`;
-    const tIn = h('input'); tIn.type = 'time'; tIn.value = ev.allDay ? '' : R.fmtTime(ev.start);
-    const dT = h('span', 'dtx', R.fmtDay(ev.start)), tT = h('span', 'dtx' + (ev.allDay ? ' off' : ''), ev.allDay ? '종일' : R.fmtTime(ev.start));
+    const nod = ev.start == null, pr = R.kstParts(nod ? now() : ev.start);
+    const dIn = h('input'); dIn.type = 'date'; dIn.value = nod ? '' : `${pr.y}-${String(pr.m + 1).padStart(2, '0')}-${String(pr.d).padStart(2, '0')}`;
+    const tIn = h('input'); tIn.type = 'time'; tIn.value = ev.allDay || nod ? '' : R.fmtTime(ev.start);
+    const dT = h('span', 'dtx' + (nod ? ' off' : ''), nod ? '날짜 없음' : R.fmtDay(ev.start)), tT = h('span', 'dtx' + (ev.allDay ? ' off' : ''), ev.allDay ? '종일' : R.fmtTime(ev.start));
     const apply = () => {
-      const [y, m, d] = dIn.value.split('-').map(Number); if (!y) return;
+      const [y, m, d] = dIn.value ? dIn.value.split('-').map(Number) : [];
       const [hh, mm] = tIn.value ? tIn.value.split(':').map(Number) : [0, 0];
-      ev.allDay = !tIn.value; ev.start = R.fromKST(y, m - 1, d, hh, mm);
-      dT.textContent = R.fmtDay(ev.start); tT.textContent = ev.allDay ? '종일' : R.fmtTime(ev.start); tT.classList.toggle('off', ev.allDay); touch();
+      ev.allDay = !tIn.value || !y; ev.start = y ? R.fromKST(y, m - 1, d, hh, mm) : null;
+      dT.textContent = y ? R.fmtDay(ev.start) : '날짜 없음'; dT.classList.toggle('off', !y);
+      tw.hidden = !y; dclr.hidden = !y;
+      tT.textContent = ev.allDay ? '종일' : R.fmtTime(ev.start); tT.classList.toggle('off', ev.allDay); touch();
     };
     dIn.onchange = apply; tIn.onchange = apply;
     const dw = h('label', 'dtw'); dw.append(dT, dIn); const tw = h('label', 'dtw'); tw.append(tT, tIn);
     const clr = h('button', 'tiny', I.x); clr.type = 'button'; clr.hidden = ev.allDay; clr.onclick = () => { tIn.value = ''; apply(); clr.hidden = true; };
     tIn.addEventListener('change', () => { clr.hidden = !tIn.value; });
-    const dr = h('div', 'srw'); dr.append(dw, tw, clr); p.append(dr);
+    const dclr = h('button', 'tiny', I.x); dclr.type = 'button'; dclr.hidden = nod; dclr.onclick = () => { dIn.value = ''; tIn.value = ''; clr.hidden = true; apply(); };
+    tw.hidden = nod;
+    const dr = h('div', 'srw'); dr.append(dw, dclr, tw, clr); p.append(dr);
     // 반복
     const rep = h('div', 'srw');
-    const rseg = seg([['없음', ''], ['매일', 'd'], ['매주', 'w'], ['매월', 'm']], (ev.repeat && ev.repeat.f) || '', v => { ev.repeat = v ? { f: v, days: v === 'w' ? ((ev.repeat && ev.repeat.days) || [R.kstParts(ev.start).wd]) : undefined } : null; touch(); drawDays(); });
+    const rseg = seg([['없음', ''], ['매일', 'd'], ['매주', 'w'], ['매월', 'm']], (ev.repeat && ev.repeat.f) || '', v => { ev.repeat = v ? { f: v, days: v === 'w' ? ((ev.repeat && ev.repeat.days) || [R.kstParts(ev.start ?? now()).wd]) : undefined } : null; touch(); drawDays(); });
     rep.append(h('span', 'sl', I.repeat), rseg); p.append(rep);
     const days = h('div', 'days');
     const drawDays = () => { days.innerHTML = ''; days.hidden = !(ev.repeat && ev.repeat.f === 'w'); if (days.hidden) return; '일월화수목금토'.split('').forEach((c, i) => { const b = h('button', 'dy' + (ev.repeat.days.includes(i) ? ' on' : ''), c); b.type = 'button'; b.onclick = () => { const s = new Set(ev.repeat.days); s.has(i) ? s.delete(i) : s.add(i); ev.repeat.days = [...s].sort(); if (!ev.repeat.days.length) ev.repeat.days = [i]; touch(); drawDays(); }; days.append(b); }); };
