@@ -50,7 +50,8 @@ export function fireTimes(ev, occ) {
     if (r.k === 'min') out.push(occ - (r.v || 0) * 60000);
     else if (r.k === 'eve' || r.k === 'morn') {
       const [hh, mm] = String(r.v || (r.k === 'eve' ? '21:00' : '08:00')).split(':').map(Number);
-      const p = kstParts(occ); out.push(fromKST(p.y, p.m, p.d - (r.k === 'eve' ? 1 : 0), hh, mm));
+      const p = kstParts(occ), t = fromKST(p.y, p.m, p.d - (r.k === 'eve' ? 1 : 0), hh, mm);
+      if (!(r.k === 'morn' && t > occ && !ev.allDay)) out.push(t); // 아침 알림이 일정보다 늦으면 생략
     }
   }
   return out;

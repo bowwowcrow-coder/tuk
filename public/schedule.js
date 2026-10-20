@@ -21,7 +21,7 @@ const I = {
   left: sv('<path d="M15 5l-7 7 7 7"/>'),
   right: sv('<path d="M9 5l7 7-7 7"/>')
 };
-const REMIND = [['정시', { k: 'min', v: 0 }], ['10분', { k: 'min', v: 10 }], ['30분', { k: 'min', v: 30 }], ['1시간', { k: 'min', v: 60 }], ['전날 21시', { k: 'eve', v: '21:00' }], ['아침 8시', { k: 'morn', v: '08:00' }]];
+const REMIND = [['정시', { k: 'min', v: 0 }], ['10분', { k: 'min', v: 10 }], ['30분', { k: 'min', v: 30 }], ['1시간', { k: 'min', v: 60 }], ['전날 21시', { k: 'eve', v: '21:00' }], ['아침 8시', { k: 'morn', v: '08:00' }], ['8시 반', { k: 'morn', v: '08:30' }]];
 const rk = r => r.k + ':' + r.v;
 
 /* ---------- 저장소 (별도 DB) ---------- */
@@ -154,8 +154,8 @@ function agenda(frag, list, t0, isPast) {
 }
 /* ---------- 던지기: 달력 시트 ---------- */
 function newEvent(title, start, allDay) {
-  // 기본 알림: 시간 있으면 30분 전, 종일이면 그날 아침 8시, 날짜 없으면 없음
-  const remind = start == null ? [] : allDay ? [{ k: 'morn', v: '08:00' }] : [{ k: 'min', v: 30 }];
+  // 기본 알림: 시간 있으면 그날 8:30 + 1시간 전, 종일이면 그날 아침 8시, 날짜 없으면 없음
+  const remind = start == null ? [] : allDay ? [{ k: 'morn', v: '08:00' }] : [{ k: 'morn', v: '08:30' }, { k: 'min', v: 60 }];
   return { id: uid(), title: title || '', body: '', start, allDay: !!allDay, repeat: null, remind, done: false, updated: 0, deleted: false };
 }
 $('#sopen').onclick = () => openCompose();
