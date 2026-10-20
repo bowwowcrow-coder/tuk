@@ -154,7 +154,9 @@ function agenda(frag, list, t0, isPast) {
 }
 /* ---------- 던지기: 달력 시트 ---------- */
 function newEvent(title, start, allDay) {
-  return { id: uid(), title: title || '', body: '', start, allDay: !!allDay, repeat: null, remind: [], done: false, updated: 0, deleted: false };
+  // 기본 알림: 시간 있으면 30분 전, 종일이면 그날 아침 8시, 날짜 없으면 없음
+  const remind = start == null ? [] : allDay ? [{ k: 'morn', v: '08:00' }] : [{ k: 'min', v: 30 }];
+  return { id: uid(), title: title || '', body: '', start, allDay: !!allDay, repeat: null, remind, done: false, updated: 0, deleted: false };
 }
 $('#sopen').onclick = () => openCompose();
 function openCompose(dayMs) {
@@ -221,7 +223,7 @@ function openCompose(dayMs) {
         if (q.hasTime) { hh = q.hh; mm = q.mm; } else if (time) { [hh, mm] = time.split(':').map(Number); }
         ev = newEvent(q.title || txt, R.fromKST(dp.y, dp.m, dp.d, hh == null ? 0 : hh, mm), hh == null);
       }
-      save(ev); closeSheet();
+      save(ev); closeSheet(); if (ev.remind.length && !S.subOk) ensurePush();
     };
     // 키보드가 올라오면 시트를 그 위로
     const vv = window.visualViewport;
