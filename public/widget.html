@@ -30,6 +30,16 @@ body{padding:10px 12px 12px}
 .e .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
 .done{opacity:.35}.done .n,.chip.done{text-decoration:line-through}
 .past{opacity:.5}
+body{padding-bottom:70px}
+#add{position:fixed;left:0;right:0;bottom:0;background:var(--bg);padding:6px 12px 10px}
+#add input{width:100%;border:0;background:none;font:inherit;font-size:13px;color:var(--tx);outline:none;padding:6px 2px}
+#add input::placeholder{color:var(--tx3)}
+#cats{display:flex;align-items:center;gap:8px;padding:2px 2px 4px}
+#cats[hidden]{display:none}
+.cd{width:12px;height:12px;border-radius:50%;border:0;padding:0;cursor:pointer;opacity:.3}
+.cd.on{opacity:1;transform:scale(1.2)}
+#cn{font-size:10.5px;color:var(--tx3);margin-left:2px}
+#hint{font-size:10.5px;color:var(--tx3);padding:0 2px;min-height:14px}
 #msg{font-size:12px;color:var(--tx3);padding:20px 4px;text-align:center}
 #msg input{display:block;width:100%;margin-top:8px;font:inherit;font-size:13px;padding:6px;border:0;border-bottom:1px solid var(--tx3);background:none;color:var(--tx);outline:none;text-align:center}
 </style>
@@ -39,6 +49,7 @@ body{padding:10px 12px 12px}
 <div id="nd"></div>
 <div id="ag"></div>
 <div id="msg" hidden></div>
+<form id="add" autocomplete="off"><div id="cats" hidden></div><input id="ai" placeholder="할 일 툭 던지기  (내일 3시 치과)"><div id="hint"></div></form>
 <script type="module">
 import * as R from '/recur.mjs';
 const $ = s => document.querySelector(s);
@@ -82,8 +93,28 @@ function draw() {
   });
   if (!by.size && !nd.children.length) { $('#ag').innerHTML = '<div id="msg">2주 안에 일정 없음</div>'; }
 }
+// 던지기: 날짜·시간은 글에서 읽고, 없으면 날짜 없는 줄로
+let cat = 'etc';
+const cats = $('#cats'), ai = $('#ai'), hint = $('#hint');
+R.CATS.forEach(([k, label, col]) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'cd' + (k === cat ? ' on' : ''); b.style.background = col; b.title = label; b.onclick = () => { cat = k; [...cats.querySelectorAll('.cd')].forEach(c => c.classList.toggle('on', c === b)); $('#cn').textContent = label; ai.focus(); }; cats.append(b); });
+cats.insertAdjacentHTML('beforeend', '<span id="cn">기타</span>');
+const showCats = () => { cats.hidden = !(document.activeElement === ai || ai.value); };
+ai.addEventListener('focus', showCats); ai.addEventListener('blur', () => setTimeout(showCats, 150));
+ai.addEventListener('input', () => {
+  const t = ai.value.trim(); if (!t) { hint.textContent = ''; return; }
+  const q = R.parseKo(t);
+  hint.textContent = q.start == null ? '날짜 없이' : R.fmtDay(q.start) + (q.allDay ? '' : ' ' + R.fmtTime(q.start)) + '  ·  ' + (q.title || t);
+});
+$('#add').onsubmit = async e => {
+  e.preventDefault(); const t = ai.value.trim(); if (!t) return;
+  const q = R.parseKo(t), start = q.start, allDay = start == null ? true : q.allDay;
+  const remind = start == null ? [] : allDay ? [{ k: 'morn', v: '08:00' }] : [{ k: 'morn', v: '08:30' }, { k: 'min', v: 60 }];
+  const it = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), title: q.title || t, body: '', start, allDay, repeat: null, remind, cat, done: false, updated: Date.now(), deleted: false };
+  ai.value = ''; hint.textContent = ''; ev.set(it.id, it); draw();
+  try { await api('s/push', { method: 'POST', body: JSON.stringify({ items: [it] }) }); } catch (x) { hint.textContent = '저장 실패 — 다시 시도'; ai.value = t; }
+};
 load();
-setInterval(load, 60000);
+setInterval(() => { if (document.activeElement !== ai) load(); }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 window.addEventListener('focus', load);
 </script>
