@@ -99,11 +99,34 @@ function expand(from, to) {
   list.sort((a, b) => a.occ - b.occ || (a.ev.allDay ? -1 : 0) - (b.ev.allDay ? -1 : 0));
   return list;
 }
+// 완료: 두 번 탭(어디서나) · 오른쪽으로 쓸기(일정표 막대)
+function paint(el, ev) { if (ev.cat && ev.cat !== 'etc') { el.style.background = R.catColor(ev.cat); el.style.color = '#fff'; } }
+function toggleDone(ev) { ev.done = !ev.done; save(ev); }
+function gestures(el, ev, open, swipe) {
+  let tapT = null, lastTap = 0, moved = false, x0 = 0, y0 = 0, dx = 0, drag = false;
+  el.addEventListener('click', e => {
+    e.stopPropagation(); if (moved) { moved = false; return; }
+    const t = Date.now();
+    if (t - lastTap < 300) { clearTimeout(tapT); lastTap = 0; toggleDone(ev); return; }
+    lastTap = t; tapT = setTimeout(open, 260);
+  });
+  if (!swipe) return;
+  el.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; dx = 0; drag = false; moved = false; el.setPointerCapture && el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointermove', e => {
+    if (e.buttons === 0 && e.pointerType === 'mouse') return;
+    const ddx = e.clientX - x0, ddy = e.clientY - y0;
+    if (!drag && Math.abs(ddx) > 10 && Math.abs(ddx) > Math.abs(ddy) * 1.5) { drag = true; el.style.transition = 'none'; }
+    if (drag) { dx = Math.max(0, Math.min(120, ddx)); el.style.transform = `translateX(${dx}px)`; el.classList.toggle('arm', dx > 70); }
+  });
+  const end = () => { if (!drag) return; drag = false; moved = true; el.style.transition = ''; el.style.transform = ''; el.classList.remove('arm'); if (dx > 70) toggleDone(ev); };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+}
 function cardEl(x) {
   const { ev, occ } = x; const el = h('div', 'sc' + (ev.done ? ' done' : '') + (occ != null && occ < now() && !ev.allDay ? ' past' : ''));
   const t = ev.allDay ? '' : R.fmtTime(occ);
   el.innerHTML = `<div class="st">${t ? `<span class="tm">${t}</span>` : ''}${ev.remind && ev.remind.length ? '<i class="bl"></i>' : ''}${ev.repeat && ev.repeat.f ? I.repeat : ''}</div><div class="sn">${esc(ev.title || '')}</div>`;
-  el.onclick = () => openEvent(ev.id, occ);
+  paint(el, ev);
+  gestures(el, ev, () => openEvent(ev.id, occ), false);
   return el;
 }
 function render() {
@@ -144,7 +167,8 @@ function agenda(frag, list, t0, isPast) {
       const { ev, occ } = x;
       const e = h('div', 'age' + (ev.done ? ' done' : '') + (!ev.allDay && occ < now() ? ' past' : ''));
       e.innerHTML = `${ev.allDay ? '' : `<span class="tm">${R.fmtTime(occ)}</span>`}<span class="tt">${esc(ev.title || '')}</span>${ev.repeat && ev.repeat.f ? I.repeat : ''}${ev.remind && ev.remind.length ? '<i class="bl"></i>' : ''}`;
-      e.onclick = ev2 => { ev2.stopPropagation(); openEvent(ev.id, occ); };
+      paint(e, ev);
+      gestures(e, ev, () => openEvent(ev.id, occ), true);
       col.append(e);
     });
     row.append(col);
@@ -209,8 +233,9 @@ function openCompose(dayMs) {
     const setTime = v => { time = v; tT.textContent = v || '종일'; tT.classList.toggle('off', !v); clr.hidden = !v; };
     tIn.onchange = () => setTime(tIn.value); clr.onclick = () => { tIn.value = ''; setTime(''); };
     const ti = h('input', 'cmi'); ti.placeholder = '할 일 툭 던지기'; ti.enterKeyHint = 'send';
+    let cat = 'etc'; const cats = catPicker(cat, v => { cat = v; });
     const send = h('button', 'cms', I.up); send.type = 'submit';
-    row.append(tw, clr, ti, send); p.append(head, wk, grid, line, row); draw();
+    row.append(tw, clr, ti, send); p.append(head, wk, grid, line, cats, row); draw();
     row.onsubmit = e => {
       e.preventDefault(); const txt = ti.value.trim(); if (!txt) { ti.focus(); return; }
       const q = R.parseKo(txt);
@@ -223,7 +248,7 @@ function openCompose(dayMs) {
         if (q.hasTime) { hh = q.hh; mm = q.mm; } else if (time) { [hh, mm] = time.split(':').map(Number); }
         ev = newEvent(q.title || txt, R.fromKST(dp.y, dp.m, dp.d, hh == null ? 0 : hh, mm), hh == null);
       }
-      save(ev); closeSheet(); if (ev.remind.length && !S.subOk) ensurePush();
+      ev.cat = cat; save(ev); closeSheet(); if (ev.remind.length && !S.subOk) ensurePush();
     };
     // 키보드가 올라오면 시트를 그 위로
     const vv = window.visualViewport;
@@ -262,6 +287,8 @@ function openEvent(id, occ, isNew, draft) {
     const dclr = h('button', 'tiny', I.x); dclr.type = 'button'; dclr.hidden = nod; dclr.onclick = () => { dIn.value = ''; tIn.value = ''; clr.hidden = true; apply(); };
     tw.hidden = nod;
     const dr = h('div', 'srw'); dr.append(dw, dclr, tw, clr); p.append(dr);
+    // 분류
+    const cr = h('div', 'srw'); cr.append(catPicker(ev.cat || 'etc', v => { ev.cat = v; touch(); })); p.append(cr);
     // 반복
     const rep = h('div', 'srw');
     const rseg = seg([['없음', ''], ['매일', 'd'], ['매주', 'w'], ['매월', 'm']], (ev.repeat && ev.repeat.f) || '', v => { ev.repeat = v ? { f: v, days: v === 'w' ? ((ev.repeat && ev.repeat.days) || [R.kstParts(ev.start ?? now()).wd]) : undefined } : null; touch(); drawDays(); });
@@ -282,6 +309,15 @@ function openEvent(id, occ, isNew, draft) {
     p.append(btns);
     if (isNew || draft) setTimeout(() => ti.focus(), 60);
   }, () => { clearTimeout(tmr); commit(); });
+}
+function catPicker(cur, fn) {
+  const w = h('div', 'cats'); const name = h('span', 'cn', R.catName(cur));
+  R.CATS.forEach(([k, label, col]) => {
+    const b = h('button', 'cd' + (k === cur ? ' on' : '')); b.type = 'button'; b.style.background = col; b.title = label;
+    b.onclick = () => { [...w.querySelectorAll('.cd')].forEach(c => c.classList.toggle('on', c === b)); name.textContent = label; fn(k); };
+    w.append(b);
+  });
+  w.append(name); return w;
 }
 function seg(opts, cur, fn) {
   const s = h('div', 'seg isg');

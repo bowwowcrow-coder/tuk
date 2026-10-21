@@ -1,4 +1,4 @@
-const V = 'tuk-v26';
+const V = 'tuk-v27';
 const SHELL = ['/', '/app.js', '/style.css', '/schedule.js', '/schedule.css', '/flip.js', '/flip.css', '/recur.mjs', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-180.png'];
 
 self.addEventListener('install', e => {
@@ -30,7 +30,7 @@ self.addEventListener('fetch', e => {
   if (u.origin === location.origin) {
     if (u.pathname.startsWith('/api/img/')) return e.respondWith(cacheFirst(req, 'tuk-img'));
     if (u.pathname.startsWith('/api/')) return;
-    if (req.mode === 'navigate') return e.respondWith(swr(req, '/'));
+    if (req.mode === 'navigate') return e.respondWith(u.pathname.startsWith('/widget') ? swr(req) : swr(req, '/'));
     return e.respondWith(swr(req));
   }
   if (u.hostname === 'cdn.jsdelivr.net') return e.respondWith(cacheFirst(req, 'tuk-font'));

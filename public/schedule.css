@@ -122,3 +122,12 @@ textarea.sf{resize:none;min-height:64px;line-height:1.6}
 .age.past{opacity:.45}
 .age.done{opacity:.3}
 .age.done .tt{text-decoration:line-through}
+
+/* 분류 · 완료 제스처 */
+.age{touch-action:pan-y;transition:transform .2s,opacity .2s;position:relative}
+.age.arm{opacity:.55}
+.cats{display:flex;align-items:center;gap:9px;padding:6px 4px 2px}
+.cd{width:16px;height:16px;border-radius:50%;flex:none;opacity:.35;transition:opacity .15s,transform .15s}
+.cd.on{opacity:1;transform:scale(1.15)}
+.cn{font-size:12px;color:var(--tx3);margin-left:2px}
+.srw .cats{padding:0 0 0 2px}

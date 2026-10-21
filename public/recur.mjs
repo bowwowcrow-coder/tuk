@@ -93,7 +93,7 @@ export function parseKo(text, now = Date.now()) {
   if (hh != null) {
     if (ampm && /오후|저녁|밤|낮/.test(ampm) && hh < 12) hh += 12;
     if (ampm === '새벽' && hh === 12) hh = 0;
-    if (!ampm && hh >= 1 && hh <= 6) hh += 12; // 맥락 없는 1~6시는 오후로
+    if (!ampm && hh >= 1 && hh <= 7) hh += 12; // 맥락 없는 1~7시는 오후로
   }
   const hasDate = dateFound, hasTime = hh != null;
   if (!dateFound && hh != null) { const p = kstParts(now); y = p.y; m = p.m; d = p.d; dateFound = true; if (fromKST(y, m, d, hh, mm || 0) < now - 60000) { const q = kstParts(now + DAY); y = q.y; m = q.m; d = q.d; } }
@@ -106,3 +106,16 @@ export function parseKo(text, now = Date.now()) {
 
 export function fmtTime(ms) { const p = kstParts(ms); return String(p.hh).padStart(2, '0') + ':' + String(p.mm).padStart(2, '0'); }
 export function fmtDay(ms) { const p = kstParts(ms); return (p.m + 1) + '.' + p.d + ' ' + '일월화수목금토'[p.wd]; }
+
+// ---- 분류 (색만으로 구분, 기타는 기본 검정)
+export const CATS = [
+  ['school', '학교', '#33506f'],
+  ['grad', '대학원', '#5d4677'],
+  ['friend', '친분', '#8a6230'],
+  ['field', '이쪽', '#2f6159'],
+  ['med', '의료', '#94403c'],
+  ['family', '가족', '#55703a'],
+  ['etc', '기타', '#1d1c1a']
+];
+export const catColor = k => (CATS.find(c => c[0] === k) || CATS[CATS.length - 1])[2];
+export const catName = k => (CATS.find(c => c[0] === k) || CATS[CATS.length - 1])[1];

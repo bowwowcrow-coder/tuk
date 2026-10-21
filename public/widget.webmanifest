@@ -1,0 +1,15 @@
+{
+  "id": "/widget",
+  "name": "툭 위젯",
+  "short_name": "툭 위젯",
+  "lang": "ko",
+  "start_url": "/widget",
+  "scope": "/widget",
+  "display": "standalone",
+  "background_color": "#f3f2ef",
+  "theme_color": "#f3f2ef",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
