@@ -131,3 +131,8 @@ textarea.sf{resize:none;min-height:64px;line-height:1.6}
 .cd.on{opacity:1;transform:scale(1.15)}
 .cn{font-size:12px;color:var(--tx3);margin-left:2px}
 .srw .cats{padding:0 0 0 2px}
+
+/* 시급 */
+.ur{color:#ff9b8f;font-weight:800;margin-right:4px}
+.sb.ug{font-size:20px;font-weight:700;color:var(--tx3)}
+.sb.ug.on{color:#d0453a}

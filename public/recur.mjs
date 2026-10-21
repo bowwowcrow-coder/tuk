@@ -60,6 +60,8 @@ export function fireTimes(ev, occ) {
 // ---- 한국어 날짜·시간 파서. 반환 {start, allDay, title} / 날짜 못 읽으면 start null
 const WD = { 일: 0, 월: 1, 화: 2, 수: 3, 목: 4, 금: 5, 토: 6 };
 export function parseKo(text, now = Date.now()) {
+  // 앞이나 끝에 ! = 시급
+  let urgent = false; text = String(text).replace(/^\s*!+\s*|\s*!+\s*$/g, () => { urgent = true; return ''; }) || text;
   let s = ' ' + text.replace(/\s+/g, ' ').trim() + ' ';
   const np = kstParts(now);
   let y = null, m = null, d = null, hh = null, mm = null, dateFound = false;
@@ -97,11 +99,11 @@ export function parseKo(text, now = Date.now()) {
   }
   const hasDate = dateFound, hasTime = hh != null;
   if (!dateFound && hh != null) { const p = kstParts(now); y = p.y; m = p.m; d = p.d; dateFound = true; if (fromKST(y, m, d, hh, mm || 0) < now - 60000) { const q = kstParts(now + DAY); y = q.y; m = q.m; d = q.d; } }
-  if (!dateFound) return { start: null, allDay: hh == null, title: text.trim(), hasDate, hasTime };
+  if (!dateFound) return { start: null, allDay: hh == null, title: text.trim(), hasDate, hasTime, urgent };
   if (y == null) y = np.y; if (m == null) m = np.m;
   let start = fromKST(y, m, d, hh == null ? 0 : hh, mm || 0);
   if (!/\d{4}/.test(text) && start < dayStart(now) - DAY) start = fromKST(y + 1, m, d, hh == null ? 0 : hh, mm || 0);
-  return { start, allDay: hh == null, title: s.replace(/\s+/g, ' ').trim(), hasDate, hasTime, hh, mm: mm || 0 };
+  return { start, allDay: hh == null, title: s.replace(/\s+/g, ' ').trim(), hasDate, hasTime, hh, mm: mm || 0, urgent };
 }
 
 export function fmtTime(ms) { const p = kstParts(ms); return String(p.hh).padStart(2, '0') + ':' + String(p.mm).padStart(2, '0'); }

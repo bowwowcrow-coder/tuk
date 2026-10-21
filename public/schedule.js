@@ -96,7 +96,7 @@ const now = () => Date.now();
 function expand(from, to) {
   const list = [];
   for (const ev of S.ev.values()) { if (ev.deleted) continue; for (const occ of R.occurrences(ev, from, to)) list.push({ ev, occ }); }
-  list.sort((a, b) => a.occ - b.occ || (a.ev.allDay ? -1 : 0) - (b.ev.allDay ? -1 : 0));
+  list.sort((a, b) => a.occ - b.occ || (b.ev.urgent ? 1 : 0) - (a.ev.urgent ? 1 : 0) || (a.ev.updated || 0) - (b.ev.updated || 0));
   return list;
 }
 // 완료: 두 번 탭(어디서나) · 오른쪽으로 쓸기(일정표 막대)
@@ -124,7 +124,7 @@ function gestures(el, ev, open, swipe) {
 function cardEl(x) {
   const { ev, occ } = x; const el = h('div', 'sc' + (ev.done ? ' done' : '') + (occ != null && occ < now() && !ev.allDay ? ' past' : ''));
   const t = ev.allDay ? '' : R.fmtTime(occ);
-  el.innerHTML = `<div class="st">${t ? `<span class="tm">${t}</span>` : ''}${ev.remind && ev.remind.length ? '<i class="bl"></i>' : ''}${ev.repeat && ev.repeat.f ? I.repeat : ''}</div><div class="sn">${esc(ev.title || '')}</div>`;
+  el.innerHTML = `<div class="st">${t ? `<span class="tm">${t}</span>` : ''}${ev.remind && ev.remind.length ? '<i class="bl"></i>' : ''}${ev.repeat && ev.repeat.f ? I.repeat : ''}</div><div class="sn">${ev.urgent ? '<b class="ur">!</b>' : ''}${esc(ev.title || '')}</div>`;
   paint(el, ev);
   gestures(el, ev, () => openEvent(ev.id, occ), false);
   return el;
@@ -135,7 +135,7 @@ function render() {
   $('#stoday').textContent = R.fmtDay(now());
   // 맨 위: 날짜 없는 것들
   const nd = [...S.ev.values()].filter(e => !e.deleted && e.start == null);
-  const ndList = [...nd.filter(e => !e.done).sort((a, b) => b.updated - a.updated), ...nd.filter(e => e.done).sort((a, b) => b.updated - a.updated).slice(0, 5)];
+  const ndList = [...nd.filter(e => !e.done).sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || b.updated - a.updated), ...nd.filter(e => e.done).sort((a, b) => b.updated - a.updated).slice(0, 5)];
   const top = h('div', 'srow nd');
   ndList.forEach(ev => top.append(cardEl({ ev, occ: null })));
   const g = h('div', 'sc ghost', '+'); g.onclick = () => openCompose(null); top.append(g);
@@ -166,7 +166,7 @@ function agenda(frag, list, t0, isPast) {
     items.forEach(x => {
       const { ev, occ } = x;
       const e = h('div', 'age' + (ev.done ? ' done' : '') + (!ev.allDay && occ < now() ? ' past' : ''));
-      e.innerHTML = `${ev.allDay ? '' : `<span class="tm">${R.fmtTime(occ)}</span>`}<span class="tt">${esc(ev.title || '')}</span>${ev.repeat && ev.repeat.f ? I.repeat : ''}${ev.remind && ev.remind.length ? '<i class="bl"></i>' : ''}`;
+      e.innerHTML = `${ev.allDay ? '' : `<span class="tm">${R.fmtTime(occ)}</span>`}<span class="tt">${ev.urgent ? '<b class="ur">!</b>' : ''}${esc(ev.title || '')}</span>${ev.repeat && ev.repeat.f ? I.repeat : ''}${ev.remind && ev.remind.length ? '<i class="bl"></i>' : ''}`;
       paint(e, ev);
       gestures(e, ev, () => openEvent(ev.id, occ), true);
       col.append(e);
@@ -248,7 +248,7 @@ function openCompose(dayMs) {
         if (q.hasTime) { hh = q.hh; mm = q.mm; } else if (time) { [hh, mm] = time.split(':').map(Number); }
         ev = newEvent(q.title || txt, R.fromKST(dp.y, dp.m, dp.d, hh == null ? 0 : hh, mm), hh == null);
       }
-      ev.cat = cat; save(ev); closeSheet(); if (ev.remind.length && !S.subOk) ensurePush();
+      ev.cat = cat; ev.urgent = !!q.urgent; save(ev); closeSheet(); if (ev.remind.length && !S.subOk) ensurePush();
     };
     // 키보드가 올라오면 시트를 그 위로
     const vv = window.visualViewport;
@@ -305,6 +305,7 @@ function openEvent(id, occ, isNew, draft) {
     const btns = h('div', 'sbtns');
     const ok = h('button', 'sb' + (ev.done ? ' on' : ''), I.check); ok.type = 'button'; ok.onclick = () => { ev.done = !ev.done; dirty = true; commit(); closeSheet(); };
     btns.append(ok);
+    const ug = h('button', 'sb ug' + (ev.urgent ? ' on' : ''), '!'); ug.type = 'button'; ug.onclick = () => { ev.urgent = !ev.urgent; ug.classList.toggle('on', ev.urgent); touch(); }; btns.append(ug);
     if (id) { const del = h('button', 'sb danger', I.trash); del.type = 'button'; del.onclick = () => { if (!confirm('삭제?')) return; ev.deleted = true; dirty = true; save(ev); closeSheet(); }; btns.append(del); }
     p.append(btns);
     if (isNew || draft) setTimeout(() => ti.focus(), 60);

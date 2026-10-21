@@ -305,7 +305,7 @@ export async function runCron(env, R, now = Date.now()) {
     const ex = await env.DB.prepare('SELECT k FROM sent WHERE k=?').bind(key).first(); if (ex) continue;
     await env.DB.prepare('INSERT OR REPLACE INTO sent(k,at) VALUES(?,?)').bind(key, now).run();
     const when = d.ev.allDay ? R.fmtDay(d.occ) : R.fmtDay(d.occ) + ' ' + R.fmtTime(d.occ);
-    sentN += await broadcast(env, { title: d.ev.title || '일정', body: when + (d.ev.body ? ' · ' + d.ev.body.split('\n')[0] : ''), tag: 'ev-' + d.ev.id, url: '/' });
+    sentN += await broadcast(env, { title: (d.ev.urgent ? '! ' : '') + (d.ev.title || '일정'), body: when + (d.ev.body ? ' · ' + d.ev.body.split('\n')[0] : ''), tag: 'ev-' + d.ev.id, url: '/' });
   }
   await env.DB.prepare("INSERT OR REPLACE INTO kv(k,v) VALUES('cron_last',?)").bind(String(to)).run();
   if (Math.random() < 0.02) await env.DB.prepare('DELETE FROM sent WHERE at < ?').bind(now - 7 * 86400000).run();

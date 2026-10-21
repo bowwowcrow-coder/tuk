@@ -30,6 +30,7 @@ body{padding:10px 12px 12px}
 .e .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
 .done{opacity:.35}.done .n,.chip.done{text-decoration:line-through}
 .past{opacity:.5}
+.ur{color:#c8392f;font-weight:800;margin-right:4px}
 body{padding-bottom:70px}
 #add{position:fixed;left:0;right:0;bottom:0;background:var(--bg);padding:6px 12px 10px}
 #add input{width:100%;border:0;background:none;font:inherit;font-size:13px;color:var(--tx);outline:none;padding:6px 2px}
@@ -85,16 +86,16 @@ function draw() {
   const now = Date.now(), t0 = R.dayStart(now);
   $('#tdy').textContent = R.fmtDay(now);
   const nd = $('#nd'); nd.innerHTML = '';
-  [...ev.values()].filter(e => e.start == null && !e.done).sort((a, b) => b.updated - a.updated).forEach(e => { const c = document.createElement('div'); c.className = 'chip'; c.innerHTML = dot(e) + `<span>${esc(e.title)}</span>`; tint(c, e); bind(c, e); nd.append(c); });
+  [...ev.values()].filter(e => e.start == null && !e.done).sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || b.updated - a.updated).forEach(e => { const c = document.createElement('div'); c.className = 'chip'; c.innerHTML = dot(e) + `<span>${e.urgent ? '<b class="ur">!</b>' : ''}${esc(e.title)}</span>`; tint(c, e); bind(c, e); nd.append(c); });
   const by = new Map();
   for (const e of ev.values()) for (const o of R.occurrences(e, t0, t0 + 14 * R.DAY)) { const k = R.dayStart(o); if (!by.has(k)) by.set(k, []); by.get(k).push({ e, o }); }
   const ag = $('#ag'); ag.innerHTML = '';
   [...by.keys()].sort((a, b) => a - b).forEach(k => {
     const p = R.kstParts(k), row = document.createElement('div'); row.className = 'd' + (k === t0 ? ' today' : '') + (p.wd === 0 || p.wd === 6 ? ' we' : '');
     row.innerHTML = `<div class="l"><b>${p.d}</b><i>${k === t0 ? '오늘' : '일월화수목금토'[p.wd]}</i></div><div class="c"></div>`;
-    by.get(k).sort((a, b) => a.o - b.o || (a.e.updated || 0) - (b.e.updated || 0)).forEach(({ e, o }) => {
+    by.get(k).sort((a, b) => a.o - b.o || (b.e.urgent ? 1 : 0) - (a.e.urgent ? 1 : 0) || (a.e.updated || 0) - (b.e.updated || 0)).forEach(({ e, o }) => {
       const x = document.createElement('div'); x.className = 'e' + (e.done ? ' done' : '') + (!e.allDay && o < now ? ' past' : '');
-      tint(x, e); x.innerHTML = `${dot(e)}${e.allDay ? '' : `<span class="t">${R.fmtTime(o)}</span>`}<span class="n">${esc(e.title)}</span>`; bind(x, e); row.querySelector('.c').append(x);
+      tint(x, e); x.innerHTML = `${dot(e)}${e.allDay ? '' : `<span class="t">${R.fmtTime(o)}</span>`}<span class="n">${e.urgent ? '<b class="ur">!</b>' : ''}${esc(e.title)}</span>`; bind(x, e); row.querySelector('.c').append(x);
     });
     ag.append(row);
   });
@@ -111,7 +112,7 @@ const pad = n => String(n).padStart(2, '0');
 function startEdit(id) {
   const e = ev.get(id); if (!e) return;
   editing = id; setCat(e.cat || 'etc');
-  let txt = e.title || '';
+  let txt = (e.urgent ? '!' : '') + (e.title || '');
   if (e.start != null) { const p = R.kstParts(e.start); txt = `${p.m + 1}/${p.d} ${e.allDay ? '' : R.fmtTime(e.start) + ' '}${txt}`; }
   ai.value = txt; $('#add').classList.add('ed'); ai.focus(); ai.select(); preview();
 }
@@ -123,14 +124,14 @@ function preview() {
   const t = ai.value.trim();
   if (!t) { hint.textContent = editing ? '비운 채 Enter = 삭제 · Esc = 취소' : ''; return; }
   const q = R.parseKo(t);
-  hint.textContent = q.start == null ? '날짜 없이' : R.fmtDay(q.start) + (q.allDay ? '' : ' ' + R.fmtTime(q.start)) + '  ·  ' + (q.title || t) + (editing ? '   (수정 중 · Esc 취소)' : '');
+  hint.textContent = q.start == null ? '날짜 없이' : R.fmtDay(q.start) + (q.allDay ? '' : ' ' + R.fmtTime(q.start)) + '  ·  ' + (q.urgent ? '! ' : '') + (q.title || t) + (editing ? '   (수정 중 · Esc 취소)' : '');
 }
 $('#add').onsubmit = async e => {
   e.preventDefault(); const t = ai.value.trim();
   if (editing) {
     const it = ev.get(editing); if (!it) return endEdit();
     if (!t) { if (!confirm('삭제할까요?')) return; it.deleted = true; ev.delete(it.id); }
-    else { const q = R.parseKo(t); it.title = q.title || t; it.start = q.start; it.allDay = q.start == null ? true : q.allDay; it.cat = cat; }
+    else { const q = R.parseKo(t); it.title = q.title || t; it.start = q.start; it.allDay = q.start == null ? true : q.allDay; it.cat = cat; it.urgent = !!q.urgent; }
     it.updated = Date.now(); endEdit(); draw();
     try { await api('s/push', { method: 'POST', body: JSON.stringify({ items: [it] }) }); } catch (x) { hint.textContent = '저장 실패'; }
     return;
@@ -138,7 +139,7 @@ $('#add').onsubmit = async e => {
   if (!t) return;
   const q = R.parseKo(t), start = q.start, allDay = start == null ? true : q.allDay;
   const remind = start == null ? [] : allDay ? [{ k: 'morn', v: '08:00' }] : [{ k: 'morn', v: '08:30' }, { k: 'min', v: 60 }];
-  const it = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), title: q.title || t, body: '', start, allDay, repeat: null, remind, cat, done: false, updated: Date.now(), deleted: false };
+  const it = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), title: q.title || t, body: '', start, allDay, repeat: null, remind, cat, urgent: !!q.urgent, done: false, updated: Date.now(), deleted: false };
   ai.value = ''; hint.textContent = ''; ev.set(it.id, it); draw();
   try { await api('s/push', { method: 'POST', body: JSON.stringify({ items: [it] }) }); } catch (x) { hint.textContent = '저장 실패 — 다시 시도'; ai.value = t; }
 };
