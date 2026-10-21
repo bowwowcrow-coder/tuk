@@ -40,12 +40,13 @@ body{padding-bottom:70px}
 .cd.on{opacity:1;transform:scale(1.2)}
 #cn{font-size:10.5px;color:var(--tx3);margin-left:2px}
 #hint{font-size:10.5px;color:var(--tx3);padding:0 2px;min-height:14px}
+@media (max-width:300px){body{padding:6px 7px 64px}.d{gap:6px}.l{width:20px}.l b{font-size:11.5px}.e,.chip{font-size:11px;height:21px;padding:0 6px;gap:5px}.e .t{font-size:9.5px}.dot{width:5px;height:5px}#nd{gap:3px}#add{padding:4px 7px 7px}#add input{font-size:12px}}
 #msg{font-size:12px;color:var(--tx3);padding:20px 4px;text-align:center}
 #msg input{display:block;width:100%;margin-top:8px;font:inherit;font-size:13px;padding:6px;border:0;border-bottom:1px solid var(--tx3);background:none;color:var(--tx);outline:none;text-align:center}
 </style>
 </head>
 <body>
-<div id="hd"><span id="tdy"></span><a href="/" target="_blank">툭</a></div>
+<div id="hd"><span id="tdy"></span><span><a id="mini" href="#" title="작은 창으로">작게</a>&nbsp;&nbsp;<a href="/" target="_blank">툭</a></span></div>
 <div id="nd"></div>
 <div id="ag"></div>
 <div id="msg" hidden></div>
@@ -113,6 +114,9 @@ $('#add').onsubmit = async e => {
   ai.value = ''; hint.textContent = ''; ev.set(it.id, it); draw();
   try { await api('s/push', { method: 'POST', body: JSON.stringify({ items: [it] }) }); } catch (x) { hint.textContent = '저장 실패 — 다시 시도'; ai.value = t; }
 };
+// 설치형 앱 창은 크롬이 최소 크기를 막아둠 → 팝업 창으로 열면 훨씬 작게 줄어듦
+$('#mini').onclick = e => { e.preventDefault(); const w = window.open('/widget?mini', 'tukmini', 'popup,width=250,height=420,left=' + (screen.availWidth - 270) + ',top=80'); if (w) w.focus(); };
+if (location.search.includes('mini')) $('#mini').hidden = true;
 load();
 setInterval(() => { if (document.activeElement !== ai) load(); }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
