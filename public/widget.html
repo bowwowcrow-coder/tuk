@@ -36,6 +36,7 @@ body{padding-bottom:70px}
 #add input::placeholder{color:var(--tx3)}
 #cats{display:flex;align-items:center;gap:8px;padding:2px 2px 4px}
 #cats[hidden]{display:none}
+#add.ed input{border-bottom:1px solid var(--tx3)}
 .cd{width:12px;height:12px;border-radius:50%;border:0;padding:0;cursor:pointer;opacity:.3}
 .cd.on{opacity:1;transform:scale(1.2)}
 #cn{font-size:10.5px;color:var(--tx3);margin-left:2px}
@@ -74,7 +75,12 @@ async function load() {
 }
 // 두 번 탭(더블클릭) = 완료
 async function toggle(e) { e.done = !e.done; e.updated = Date.now(); draw(); try { await api('s/push', { method: 'POST', body: JSON.stringify({ items: [e] }) }); } catch (x) {} }
-function bind(el, e) { el.ondblclick = () => toggle(e); }
+// 한 번 클릭 = 아래 입력줄에서 고치기, 더블클릭 = 완료
+function bind(el, e) {
+  let t = null;
+  el.onclick = () => { clearTimeout(t); t = setTimeout(() => startEdit(e.id), 230); };
+  el.ondblclick = () => { clearTimeout(t); toggle(e); };
+}
 function draw() {
   const now = Date.now(), t0 = R.dayStart(now);
   $('#tdy').textContent = R.fmtDay(now);
@@ -95,19 +101,41 @@ function draw() {
   if (!by.size && !nd.children.length) { $('#ag').innerHTML = '<div id="msg">2주 안에 일정 없음</div>'; }
 }
 // 던지기: 날짜·시간은 글에서 읽고, 없으면 날짜 없는 줄로
-let cat = 'etc';
+let cat = 'etc', editing = null;
 const cats = $('#cats'), ai = $('#ai'), hint = $('#hint');
 R.CATS.forEach(([k, label, col]) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'cd' + (k === cat ? ' on' : ''); b.style.background = col; b.title = label; b.onclick = () => { cat = k; [...cats.querySelectorAll('.cd')].forEach(c => c.classList.toggle('on', c === b)); $('#cn').textContent = label; ai.focus(); }; cats.append(b); });
 cats.insertAdjacentHTML('beforeend', '<span id="cn">기타</span>');
-const showCats = () => { cats.hidden = !(document.activeElement === ai || ai.value); };
+const setCat = k => { cat = k; [...cats.querySelectorAll('.cd')].forEach((c, i) => c.classList.toggle('on', R.CATS[i][0] === k)); $('#cn').textContent = R.catName(k); };
+const showCats = () => { cats.hidden = !(document.activeElement === ai || ai.value || editing); };
+const pad = n => String(n).padStart(2, '0');
+function startEdit(id) {
+  const e = ev.get(id); if (!e) return;
+  editing = id; setCat(e.cat || 'etc');
+  let txt = e.title || '';
+  if (e.start != null) { const p = R.kstParts(e.start); txt = `${p.m + 1}/${p.d} ${e.allDay ? '' : R.fmtTime(e.start) + ' '}${txt}`; }
+  ai.value = txt; $('#add').classList.add('ed'); ai.focus(); ai.select(); preview();
+}
+function endEdit() { editing = null; ai.value = ''; hint.textContent = ''; $('#add').classList.remove('ed'); setCat('etc'); showCats(); }
+ai.addEventListener('keydown', e => { if (e.key === 'Escape' && editing) { endEdit(); ai.blur(); } });
 ai.addEventListener('focus', showCats); ai.addEventListener('blur', () => setTimeout(showCats, 150));
-ai.addEventListener('input', () => {
-  const t = ai.value.trim(); if (!t) { hint.textContent = ''; return; }
+ai.addEventListener('input', preview);
+function preview() {
+  const t = ai.value.trim();
+  if (!t) { hint.textContent = editing ? '비운 채 Enter = 삭제 · Esc = 취소' : ''; return; }
   const q = R.parseKo(t);
-  hint.textContent = q.start == null ? '날짜 없이' : R.fmtDay(q.start) + (q.allDay ? '' : ' ' + R.fmtTime(q.start)) + '  ·  ' + (q.title || t);
-});
+  hint.textContent = q.start == null ? '날짜 없이' : R.fmtDay(q.start) + (q.allDay ? '' : ' ' + R.fmtTime(q.start)) + '  ·  ' + (q.title || t) + (editing ? '   (수정 중 · Esc 취소)' : '');
+}
 $('#add').onsubmit = async e => {
-  e.preventDefault(); const t = ai.value.trim(); if (!t) return;
+  e.preventDefault(); const t = ai.value.trim();
+  if (editing) {
+    const it = ev.get(editing); if (!it) return endEdit();
+    if (!t) { if (!confirm('삭제할까요?')) return; it.deleted = true; ev.delete(it.id); }
+    else { const q = R.parseKo(t); it.title = q.title || t; it.start = q.start; it.allDay = q.start == null ? true : q.allDay; it.cat = cat; }
+    it.updated = Date.now(); endEdit(); draw();
+    try { await api('s/push', { method: 'POST', body: JSON.stringify({ items: [it] }) }); } catch (x) { hint.textContent = '저장 실패'; }
+    return;
+  }
+  if (!t) return;
   const q = R.parseKo(t), start = q.start, allDay = start == null ? true : q.allDay;
   const remind = start == null ? [] : allDay ? [{ k: 'morn', v: '08:00' }] : [{ k: 'morn', v: '08:30' }, { k: 'min', v: 60 }];
   const it = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), title: q.title || t, body: '', start, allDay, repeat: null, remind, cat, done: false, updated: Date.now(), deleted: false };
@@ -116,7 +144,7 @@ $('#add').onsubmit = async e => {
 };
 // 설치형 앱 창은 크롬이 최소 크기를 막아둠 → 팝업 창으로 열면 훨씬 작게 줄어듦
 $('#mini').onclick = e => { e.preventDefault(); const w = window.open('/widget?mini', 'tukmini', 'popup,width=250,height=420,left=' + (screen.availWidth - 270) + ',top=80'); if (w) w.focus(); };
-if (location.search.includes('mini')) $('#mini').hidden = true;
+if (location.search.includes('mini')) { $('#mini').hidden = true; if (window.outerWidth > 320) try { window.resizeTo(260, 460); } catch (x) {} }
 load();
 setInterval(() => { if (document.activeElement !== ai) load(); }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
